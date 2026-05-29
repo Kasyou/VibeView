@@ -37,6 +37,18 @@
     window.addEventListener('message', function(e) {
       if (e.data && e.data.type === 'vibeview-error') {
         showError(e.data.message, e.data.file, e.data.line);
+        // Forward to server so it prints to terminal
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'console',
+            data: {
+              level: 'error',
+              message: e.data.message,
+              file: e.data.file || '',
+              line: e.data.line || 0
+            }
+          }));
+        }
       }
     });
   }
