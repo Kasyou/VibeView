@@ -1,0 +1,57 @@
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:#1a1a2e;color:#e0e0e0;display:flex;flex-direction:column;
+  height:100vh;overflow:hidden;
+}
+#toolbar{
+  display:flex;align-items:center;gap:12px;padding:8px 16px;
+  background:#16213e;border-bottom:1px solid #0f3460;flex-shrink:0;
+}
+#brand{font-weight:700;font-size:14px;color:#e94560;margin-right:16px}
+#device-picker{display:flex;gap:2px;background:#0f3460;border-radius:6px;padding:2px}
+#device-picker button{
+  background:none;border:none;color:#a0a0b0;padding:4px 12px;
+  border-radius:4px;cursor:pointer;font-size:12px;transition:all 0.15s;
+}
+#device-picker button.active{background:#e94560;color:#fff}
+#device-picker button:hover:not(.active){color:#fff;background:rgba(233,69,96,0.2)}
+#custom-size{display:flex;gap:4px;align-items:center}
+#custom-size input{
+  width:56px;padding:3px 6px;background:#0f3460;border:1px solid #1a1a4e;
+  border-radius:4px;color:#e0e0e0;font-size:12px;
+}
+#custom-apply{background:#e94560;border:none;color:#fff;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:12px}
+#status{margin-left:auto;font-size:11px;color:#666}
+#preview-container{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:#1a1a2e;
+}
+#device-frame{
+  position:relative;background:#111;border-radius:24px;padding:12px;
+  box-shadow:0 0 0 2px #333,0 0 0 4px #1a1a2e,0 8px 32px rgba(0,0,0,0.5);
+  transition:all 0.3s ease;
+}
+#device-frame.iphone15{width:417px;height:876px;padding-top:44px}
+#device-frame.pixel8{width:436px;height:939px}
+#device-frame.ipad{width:767px;height:1157px;border-radius:18px;padding:16px}
+#device-frame.full{width:100%;height:100%;border-radius:8px;padding:4px}
+#device-notch{
+  display:none;position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  width:120px;height:28px;background:#111;border-radius:0 0 16px 16px;z-index:10;
+}
+#device-frame.iphone15 #device-notch{display:block}
+#app-frame{width:100%;height:100%;border:none;border-radius:12px;background:#fff}
+#device-frame.full #app-frame{border-radius:4px}
+#error-overlay{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:100}
+#error-card{
+  background:#e94560;color:#fff;padding:12px 20px;border-radius:8px;
+  font-size:13px;box-shadow:0 4px 16px rgba(233,69,96,0.4);
+  display:flex;align-items:center;gap:10px;max-width:500px;
+}
+#error-icon{
+  width:24px;height:24px;background:rgba(255,255,255,0.2);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;
+}
+#error-message{flex:1}
+#error-file{font-size:11px;opacity:0.7;white-space:nowrap}

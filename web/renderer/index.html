@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VibeView</title>
+  <link rel="stylesheet" href="/_vibeview/style.css">
+</head>
+<body>
+  <div id="toolbar">
+    <span id="brand">VibeView</span>
+    <div id="device-picker">
+      <button data-device="iphone15" class="active">iPhone 15 Pro</button>
+      <button data-device="pixel8">Pixel 8</button>
+      <button data-device="ipad">iPad</button>
+      <button data-device="full">Full</button>
+      <button data-device="custom">Custom</button>
+    </div>
+    <div id="custom-size" style="display:none">
+      <input type="number" id="custom-w" placeholder="W" value="375">
+      <span>×</span>
+      <input type="number" id="custom-h" placeholder="H" value="812">
+      <button id="custom-apply">Apply</button>
+    </div>
+    <span id="status">connecting</span>
+  </div>
+  <div id="preview-container">
+    <div id="device-frame" class="iphone15">
+      <div id="device-notch"></div>
+      <iframe id="app-frame" src="" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+    </div>
+  </div>
+  <div id="error-overlay" style="display:none">
+    <div id="error-card">
+      <div id="error-icon">!</div>
+      <div id="error-message"></div>
+      <div id="error-file"></div>
+    </div>
+  </div>
+  <script src="/_vibeview/app.js"></script>
+</body>
+</html>
