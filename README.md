@@ -33,7 +33,7 @@ git clone https://github.com/Kasyou/VibeView.git
 cd VibeView
 go build -o vibeview.exe .
 
-# Or with Go install (requires Go 1.20+)
+# Or with Go install (requires Go 1.23+)
 go install github.com/Kasyou/VibeView@latest
 ```
 
@@ -128,7 +128,7 @@ Browser Preview Window
 
 ## Tech Stack
 
-- **Go 1.20+** — Single binary, `go:embed` for renderer
+- **Go 1.23+** — Single binary, `go:embed` for renderer
 - **fsnotify** — Cross-platform file watching
 - **gorilla/websocket** — WebSocket for live reload
 - **Vanilla HTML/CSS/JS** — Zero-dependency renderer UI, embedded in binary

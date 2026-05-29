@@ -295,40 +295,46 @@ func (s *Server) handleInspect(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	// Request a fresh screenshot first
-	reqID := fmt.Sprintf("diff-%d", time.Now().UnixNano())
-	ch := make(chan string, 1)
-	s.scrMu.Lock()
-	s.scrReqs[reqID] = ch
-	s.scrMu.Unlock()
-
-	s.Broadcast("screenshot-request", map[string]string{"id": reqID})
-
-	var currentImg string
-	select {
-	case img := <-ch:
-		currentImg = img
-	case <-time.After(5 * time.Second):
-		s.scrMu.Lock()
-		delete(s.scrReqs, reqID)
-		s.scrMu.Unlock()
-		w.Write([]byte(`{"changed":false,"error":"screenshot timeout"}`))
-		return
-	}
-
 	s.mu.Lock()
 	prevImg := s.prevScreenshot
+	hasClients := len(s.clients) > 0
 	s.mu.Unlock()
 
-	if prevImg == "" {
-		w.Write([]byte(`{"changed":false,"message":"no previous screenshot to compare"}`))
+	var currentImg string
+
+	if hasClients {
+		// Request fresh screenshot from browser
+		reqID := fmt.Sprintf("diff-%d", time.Now().UnixNano())
+		ch := make(chan string, 1)
+		s.scrMu.Lock()
+		s.scrReqs[reqID] = ch
+		s.scrMu.Unlock()
+
+		s.Broadcast("screenshot-request", map[string]string{"id": reqID})
+
+		select {
+		case img := <-ch:
+			currentImg = img
+		case <-time.After(3 * time.Second):
+			s.scrMu.Lock()
+			delete(s.scrReqs, reqID)
+			s.scrMu.Unlock()
+		}
+	} else {
+		// No browser connected — use cached screenshot
+		s.mu.Lock()
+		currentImg = s.screenshot
+		s.mu.Unlock()
+	}
+
+	if currentImg == "" || prevImg == "" {
+		w.Write([]byte(`{"changed":false,"message":"no screenshots to compare"}`))
 		return
 	}
 
 	// Compare: check overall length and a sample of bytes
 	changed := len(currentImg) != len(prevImg)
 	if !changed && len(currentImg) > 200 {
-		// Compare middle portion
 		mid := len(currentImg) / 2
 		changed = currentImg[mid:mid+100] != prevImg[mid:mid+100]
 	}

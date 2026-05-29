@@ -33,7 +33,7 @@ git clone https://github.com/Kasyou/VibeView.git
 cd VibeView
 go build -o vibeview.exe .
 
-# 或者用 go install（需要 Go 1.20+）
+# 或者用 go install（需要 Go 1.23+）
 go install github.com/Kasyou/VibeView@latest
 ```
 
@@ -128,7 +128,7 @@ VibeView 核心 (Go 单二进制, ~8MB)
 
 ## 技术栈
 
-- **Go 1.20+** — 编译为单二进制文件，`go:embed` 嵌入前端
+- **Go 1.23+** — 编译为单二进制文件，`go:embed` 嵌入前端
 - **fsnotify** — 跨平台文件监控
 - **gorilla/websocket** — WebSocket 实时推送
 - **原生 HTML/CSS/JS** — 零依赖的渲染器 UI，嵌入在二进制中
