@@ -26,6 +26,7 @@
     ws.onmessage = function(e) {
       var msg = JSON.parse(e.data);
       if (msg.type === 'reload') loadApp();
+      if (msg.type === 'screenshot-request') captureScreenshot((msg.data && msg.data.id) || '');
     };
     ws.onclose = function() {
       setStatus('reconnecting');
@@ -33,20 +34,13 @@
     };
     ws.onopen = function() { setStatus('live'); };
 
-    // forward console errors from iframe
     window.addEventListener('message', function(e) {
       if (e.data && e.data.type === 'vibeview-error') {
         showError(e.data.message, e.data.file, e.data.line);
-        // Forward to server so it prints to terminal
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({
             type: 'console',
-            data: {
-              level: 'error',
-              message: e.data.message,
-              file: e.data.file || '',
-              line: e.data.line || 0
-            }
+            data: { level: 'error', message: e.data.message, file: e.data.file || '', line: e.data.line || 0 }
           }));
         }
       }
@@ -82,15 +76,10 @@
     var buttons = document.querySelectorAll('#device-picker button');
     for (var i = 0; i < buttons.length; i++) {
       var b = buttons[i];
-      if (b.dataset.device === name) {
-        b.classList.add('active');
-      } else {
-        b.classList.remove('active');
-      }
+      b.classList.toggle('active', b.dataset.device === name);
     }
     var frame = document.getElementById('device-frame');
     var iframe = document.getElementById('app-frame');
-
     frame.className = name;
 
     if (name === 'full') {
@@ -133,6 +122,129 @@
 
   function hideError() {
     document.getElementById('error-overlay').style.display = 'none';
+  }
+
+  // --- Screenshot ---
+  function captureScreenshot(reqId) {
+    try {
+      var W = 800, H = 500;
+      var canvas = document.createElement('canvas');
+      canvas.width = W;
+      canvas.height = H;
+      var ctx = canvas.getContext('2d');
+
+      // Background
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, W, H);
+
+      // Toolbar
+      ctx.fillStyle = '#16213e';
+      ctx.fillRect(0, 0, W, 36);
+      ctx.fillStyle = '#e94560';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.fillText('VibeView', 12, 24);
+
+      // Active device
+      var active = document.querySelector('#device-picker button.active');
+      var devName = active ? active.textContent : 'iPhone 15 Pro';
+      ctx.fillStyle = '#a0a0b0';
+      ctx.font = '11px sans-serif';
+      ctx.fillText(devName, 85, 24);
+
+      // Status
+      var statusEl = document.getElementById('status');
+      var st = statusEl ? statusEl.textContent : '';
+      ctx.fillStyle = st === 'live' ? '#4caf50' : '#e94560';
+      ctx.fillText(st, W - 50, 24);
+
+      // Device frame
+      var fw = 280, fh = 420, fx = (W - fw) / 2, fy = 60;
+      var r;
+
+      ctx.fillStyle = '#111';
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 2;
+      r = 24;
+      roundRect(ctx, fx - 4, fy - 4, fw + 8, fh + 8, r);
+      ctx.fill();
+      ctx.stroke();
+
+      // Screen area
+      ctx.fillStyle = '#fff';
+      r = 12;
+      roundRect(ctx, fx, fy, fw, fh, r);
+      ctx.fill();
+
+      ctx.fillStyle = '#999';
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('App Preview', fx + fw/2, fy + fh/2 - 4);
+      ctx.fillText('(open browser to view)', fx + fw/2, fy + fh/2 + 12);
+      ctx.textAlign = 'left';
+
+      // Notch for iPhone
+      if (devName.indexOf('iPhone') >= 0) {
+        ctx.fillStyle = '#111';
+        ctx.beginPath();
+        var nx = fx + fw/2 - 50, ny = fy - 4, nw = 100, nh = 22;
+        ctx.moveTo(nx + 12, ny);
+        ctx.lineTo(nx + nw - 12, ny);
+        ctx.arcTo(nx + nw, ny, nx + nw, ny + 12, 12);
+        ctx.lineTo(nx + nw, ny + nh);
+        ctx.lineTo(nx, ny + nh);
+        ctx.lineTo(nx, ny + 12);
+        ctx.arcTo(nx, ny, nx + 12, ny, 12);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Error overlay
+      var errOverlay = document.getElementById('error-overlay');
+      if (errOverlay && errOverlay.style.display !== 'none') {
+        var errMsg = document.getElementById('error-message');
+        var errFile = document.getElementById('error-file');
+        var msg = errMsg ? errMsg.textContent.substring(0, 60) : '';
+
+        ctx.fillStyle = 'rgba(233,69,96,0.95)';
+        var ew = Math.min(460, W - 40), eh = 48;
+        var ex = (W - ew) / 2, ey = H - eh - 16;
+        roundRect(ctx, ex, ey, ew, eh, 8);
+        ctx.fill();
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px sans-serif';
+        ctx.fillText('! ' + msg, ex + 14, ey + 20);
+        if (errFile) {
+          ctx.font = '10px sans-serif';
+          ctx.fillText(errFile.textContent.substring(0, 40), ex + 14, ey + 36);
+        }
+      }
+
+      var png = canvas.toDataURL('image/png');
+      wsSend({type: 'screenshot-data', id: reqId, data: {image: png}});
+    } catch(e) {
+      wsSend({type: 'screenshot-data', id: reqId, data: {image: '', error: e.message}});
+    }
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  }
+
+  function wsSend(data) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(data));
+    }
   }
 
   init();

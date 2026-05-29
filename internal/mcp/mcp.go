@@ -133,7 +133,7 @@ func (s *Server) handleToolsList(req Request) Response {
 		},
 		{
 			Name:        "preview_screenshot",
-			Description: "View the current preview. Open http://localhost:51820 in a browser to see the visual preview. Use preview_console and preview_reload for state changes.",
+			Description: "Capture a screenshot of the current preview page. Returns a base64 PNG image of what the user sees in the browser. Requires a browser to be connected to the preview server.",
 			InputSchema: InputSchema{Type: "object", Properties: map[string]Property{}},
 		},
 	}
@@ -175,8 +175,25 @@ func (s *Server) handleToolsCall(req Request) Response {
 			result = map[string]interface{}{"messages": msgs}
 		}
 	case "preview_screenshot":
-		result = map[string]string{
-			"message": "Preview available at http://localhost:51820. Open in browser to view the rendered output.",
+		// Request screenshot from the browser via HTTP API
+		resp, httpErr := s.client.Post(s.serverURL+"/api/screenshot", "application/json", nil)
+		if httpErr != nil {
+			err = &RPCError{Code: -32000, Message: httpErr.Error()}
+		} else {
+			defer resp.Body.Close()
+			raw, _ := io.ReadAll(resp.Body)
+			var data map[string]interface{}
+			json.Unmarshal(raw, &data)
+			if img, ok := data["image"]; ok && img != "" {
+				result = map[string]interface{}{
+					"image":    img,
+					"mimeType": "image/png",
+				}
+			} else {
+				result = map[string]string{
+					"message": "Screenshot not available. Open http://localhost:51820 in browser to see the preview. Ensure a browser tab is connected.",
+				}
+			}
 		}
 	default:
 		err = &RPCError{Code: -32601, Message: "unknown tool: " + params.Name}

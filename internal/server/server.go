@@ -29,13 +29,16 @@ type ConsoleMsg struct {
 }
 
 type Server struct {
-	cfg     Config
-	mux     *http.ServeMux
-	wsUp    websocket.Upgrader
-	clients map[*websocket.Conn]bool
-	mu      sync.Mutex
-	console []ConsoleMsg
-	httpSrv *http.Server
+	cfg        Config
+	mux        *http.ServeMux
+	wsUp       websocket.Upgrader
+	clients    map[*websocket.Conn]bool
+	mu         sync.Mutex
+	console    []ConsoleMsg
+	httpSrv    *http.Server
+	screenshot string            // latest screenshot base64
+	scrReqs    map[string]chan string // pending screenshot requests
+	scrMu      sync.Mutex
 }
 
 func New(cfg Config) *Server {
@@ -43,6 +46,7 @@ func New(cfg Config) *Server {
 		cfg:     cfg,
 		mux:     http.NewServeMux(),
 		clients: make(map[*websocket.Conn]bool),
+		scrReqs: make(map[string]chan string),
 		wsUp: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
@@ -61,6 +65,7 @@ func (s *Server) routes() {
 	s.mux.Handle("/_app/", http.StripPrefix("/_app", &injectHandler{
 		handler: http.FileServer(http.Dir(s.cfg.ProjectDir)),
 	}))
+	s.mux.HandleFunc("/api/screenshot", s.handleScreenshot)
 	s.mux.HandleFunc("/", s.renderer)
 }
 
@@ -154,8 +159,74 @@ func (s *Server) ws(w http.ResponseWriter, r *http.Request) {
 					fmt.Fprintf(os.Stderr, "  [%s] %s\n", level, message)
 				}
 			}
+			if msg["type"] == "screenshot-data" {
+				data, ok := msg["data"].(map[string]interface{})
+				if !ok {
+					continue
+				}
+				reqID := str(msg["id"])
+				image := str(data["image"])
+				s.scrMu.Lock()
+				if ch, ok := s.scrReqs[reqID]; ok {
+					ch <- image
+					delete(s.scrReqs, reqID)
+				}
+				s.scrMu.Unlock()
+				// Store latest screenshot
+				if image != "" {
+					s.mu.Lock()
+					s.screenshot = image
+					s.mu.Unlock()
+				}
+			}
 		}
 	}()
+}
+
+func (s *Server) handleScreenshot(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		// Return latest cached screenshot
+		s.mu.Lock()
+		img := s.screenshot
+		s.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		if img == "" {
+			w.Write([]byte(`{"image":"","error":"no screenshot available"}`))
+			return
+		}
+		fmt.Fprintf(w, `{"image":"%s"}`, img)
+
+	case http.MethodPost:
+		// Request a new screenshot from the browser
+		reqID := fmt.Sprintf("%d", time.Now().UnixNano())
+		ch := make(chan string, 1)
+		s.scrMu.Lock()
+		s.scrReqs[reqID] = ch
+		s.scrMu.Unlock()
+
+		s.Broadcast("screenshot-request", map[string]string{"id": reqID})
+
+		// Wait for response (timeout 5s)
+		select {
+		case img := <-ch:
+			w.Header().Set("Content-Type", "application/json")
+			if img == "" {
+				w.Write([]byte(`{"image":"","error":"screenshot capture failed"}`))
+			} else {
+				fmt.Fprintf(w, `{"image":"%s"}`, img)
+			}
+		case <-time.After(5 * time.Second):
+			s.scrMu.Lock()
+			delete(s.scrReqs, reqID)
+			s.scrMu.Unlock()
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"image":"","error":"screenshot timeout (no browser connected?)"}`))
+		}
+
+	default:
+		http.Error(w, "method not allowed", 405)
+	}
 }
 
 func (s *Server) Broadcast(msgType string, data interface{}) {
