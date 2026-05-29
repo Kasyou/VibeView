@@ -13,8 +13,18 @@ func stubHandler() http.Handler {
 	})
 }
 
+func testConfig() Config {
+	return Config{
+		Port:         0,
+		DevServerURL: "http://localhost:5173",
+		ProjectDir:   ".",
+		RendererHTML: []byte("x"),
+		RendererFS:   stubHandler(),
+	}
+}
+
 func TestHealth(t *testing.T) {
-	s := New(Config{Port: 0, DevServerURL: "http://localhost:5173", RendererHTML: []byte("x"), RendererFS: stubHandler()})
+	s := New(testConfig())
 	req := httptest.NewRequest("GET", "/health", nil)
 	w := httptest.NewRecorder()
 	s.mux.ServeHTTP(w, req)
@@ -24,7 +34,9 @@ func TestHealth(t *testing.T) {
 }
 
 func TestRenderer(t *testing.T) {
-	s := New(Config{Port: 0, DevServerURL: "http://localhost:5173", RendererHTML: []byte("<html>hi</html>"), RendererFS: stubHandler()})
+	cfg := testConfig()
+	cfg.RendererHTML = []byte("<html>hi</html>")
+	s := New(cfg)
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
 	s.mux.ServeHTTP(w, req)
@@ -37,7 +49,9 @@ func TestRenderer(t *testing.T) {
 }
 
 func TestConfig(t *testing.T) {
-	s := New(Config{Port: 0, DevServerURL: "http://localhost:3000", RendererHTML: []byte("x"), RendererFS: stubHandler()})
+	cfg := testConfig()
+	cfg.DevServerURL = "http://localhost:3000"
+	s := New(cfg)
 	req := httptest.NewRequest("GET", "/api/config", nil)
 	w := httptest.NewRecorder()
 	s.mux.ServeHTTP(w, req)
@@ -47,7 +61,9 @@ func TestConfig(t *testing.T) {
 }
 
 func TestReloadMethodCheck(t *testing.T) {
-	s := New(Config{Port: 0, DevServerURL: "", RendererHTML: []byte("x"), RendererFS: stubHandler()})
+	cfg := testConfig()
+	cfg.DevServerURL = ""
+	s := New(cfg)
 	req := httptest.NewRequest("GET", "/api/reload", nil)
 	w := httptest.NewRecorder()
 	s.mux.ServeHTTP(w, req)
@@ -57,7 +73,9 @@ func TestReloadMethodCheck(t *testing.T) {
 }
 
 func TestReloadPost(t *testing.T) {
-	s := New(Config{Port: 0, DevServerURL: "", RendererHTML: []byte("x"), RendererFS: stubHandler()})
+	cfg := testConfig()
+	cfg.DevServerURL = ""
+	s := New(cfg)
 	req := httptest.NewRequest("POST", "/api/reload", nil)
 	w := httptest.NewRecorder()
 	s.mux.ServeHTTP(w, req)
@@ -67,7 +85,9 @@ func TestReloadPost(t *testing.T) {
 }
 
 func TestConsoleEmpty(t *testing.T) {
-	s := New(Config{Port: 0, DevServerURL: "", RendererHTML: []byte("x"), RendererFS: stubHandler()})
+	cfg := testConfig()
+	cfg.DevServerURL = ""
+	s := New(cfg)
 	req := httptest.NewRequest("GET", "/api/console", nil)
 	w := httptest.NewRecorder()
 	s.mux.ServeHTTP(w, req)
@@ -80,7 +100,9 @@ func TestConsoleEmpty(t *testing.T) {
 }
 
 func TestStaticDelegation(t *testing.T) {
-	s := New(Config{Port: 0, DevServerURL: "", RendererHTML: []byte("x"), RendererFS: stubHandler()})
+	cfg := testConfig()
+	cfg.DevServerURL = ""
+	s := New(cfg)
 	req := httptest.NewRequest("GET", "/_vibeview/style.css", nil)
 	w := httptest.NewRecorder()
 	s.mux.ServeHTTP(w, req)

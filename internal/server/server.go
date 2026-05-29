@@ -13,6 +13,7 @@ import (
 type Config struct {
 	Port         int
 	DevServerURL string
+	ProjectDir   string
 	RendererHTML []byte
 	RendererFS   http.Handler
 }
@@ -54,6 +55,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/config", s.config)
 	s.mux.HandleFunc("/api/console", s.getConsole)
 	s.mux.Handle("/_vibeview/", http.StripPrefix("/_vibeview", s.cfg.RendererFS))
+	s.mux.Handle("/_app/", http.StripPrefix("/_app", http.FileServer(http.Dir(s.cfg.ProjectDir))))
 	s.mux.HandleFunc("/", s.renderer)
 }
 

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "vibeview": {
+      "command": "./vibeview.exe",
+      "args": ["mcp"],
+      "env": {
+        "VIBEVIEW_URL": "http://localhost:51820"
+      }
+    }
+  }
+}

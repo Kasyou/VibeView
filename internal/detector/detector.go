@@ -21,6 +21,7 @@ type ProjectInfo struct {
 	DevServerPort int
 	DevServerURL  string
 	WatchDirs     []string
+	ServeLocal    bool // true for HTML projects (VibeView serves the files)
 }
 
 func Detect(root string) ProjectInfo {
@@ -37,21 +38,25 @@ func Detect(root string) ProjectInfo {
 	case pkg.hasDep("react") && hasVite:
 		info.Type = React
 		info.WatchDirs = dirs(root, "src")
+		info.DevServerURL = "http://localhost:5173"
 	case pkg.hasDep("vue") && hasVite:
 		info.Type = Vue
 		info.WatchDirs = dirs(root, "src")
+		info.DevServerURL = "http://localhost:5173"
 	case pkg.hasDep("svelte") || pkg.hasDep("@sveltejs/vite-plugin-svelte"):
 		info.Type = Svelte
 		info.WatchDirs = dirs(root, "src")
+		info.DevServerURL = "http://localhost:5173"
 	case hasHTML:
 		info.Type = HTML
 		info.WatchDirs = []string{root}
+		info.ServeLocal = true
 	default:
 		info.Type = HTML
 		info.WatchDirs = []string{root}
+		info.ServeLocal = true
 	}
 
-	info.DevServerURL = "http://localhost:5173"
 	return info
 }
 

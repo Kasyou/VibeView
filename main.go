@@ -20,13 +20,19 @@ func main() {
 	projectDir, _ := os.Getwd()
 	info := detector.Detect(projectDir)
 
+	devURL := info.DevServerURL
+	if info.ServeLocal {
+		devURL = "http://localhost:51820/_app/index.html"
+	}
+
 	fmt.Println("  VibeView v0.1.0")
 	fmt.Printf("  Project:   %s\n", info.Type)
-	fmt.Printf("  Dev URL:   %s\n", info.DevServerURL)
+	fmt.Printf("  Dev URL:   %s\n", devURL)
 
 	srv := server.New(server.Config{
 		Port:         51820,
-		DevServerURL: info.DevServerURL,
+		DevServerURL: devURL,
+		ProjectDir:   projectDir,
 		RendererHTML: rendererHTMLBytes(),
 		RendererFS:   rendererAssets(),
 	})

@@ -41,6 +41,7 @@ func TestFullFlow_ServerEndpoints(t *testing.T) {
 	srv := server.New(server.Config{
 		Port:         51821,
 		DevServerURL: "http://localhost:5173",
+		ProjectDir:   ".",
 		RendererHTML: rendererHTMLBytes(),
 		RendererFS:   rendererAssets(),
 	})
