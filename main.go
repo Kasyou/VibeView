@@ -3,6 +3,11 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
+
+	"vibeview/internal/detector"
+	"vibeview/internal/server"
+	"vibeview/internal/watcher"
 )
 
 func main() {
@@ -10,10 +15,49 @@ func main() {
 		runMCP()
 		return
 	}
-	fmt.Println("VibeView v0.1.0")
-	fmt.Println("Preview:  http://localhost:51820")
+
+	projectDir, _ := os.Getwd()
+	info := detector.Detect(projectDir)
+
+	fmt.Println("  VibeView v0.1.0")
+	fmt.Printf("  Project:   %s\n", info.Type)
+	fmt.Printf("  Dev URL:   %s\n", info.DevServerURL)
+
+	srv := server.New(server.Config{
+		Port:         51820,
+		DevServerURL: info.DevServerURL,
+		RendererHTML: rendererHTMLBytes(),
+		RendererFS:   rendererAssets(),
+	})
+
+	w := watcher.New(info.WatchDirs)
+	defer w.Close()
+
+	go func() {
+		for range w.Events {
+			srv.Broadcast("reload", nil)
+		}
+	}()
+
+	go func() {
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, os.Interrupt)
+		<-sig
+		fmt.Println("\n  Shutting down...")
+		os.Exit(0)
+	}()
+
+	fmt.Printf("  Preview:   http://localhost:%d\n", 51820)
+	fmt.Printf("  Watching:  %v\n", info.WatchDirs)
+	fmt.Println()
+
+	if err := srv.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func runMCP() {
 	fmt.Fprintln(os.Stderr, "MCP mode (not yet implemented)")
+	select {} // keep alive
 }
