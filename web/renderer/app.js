@@ -27,6 +27,7 @@
       var msg = JSON.parse(e.data);
       if (msg.type === 'reload') loadApp();
       if (msg.type === 'screenshot-request') captureScreenshot((msg.data && msg.data.id) || '');
+      if (msg.type === 'inspect-request') handleInspect((msg.data && msg.data.id) || '', msg.data || {});
     };
     ws.onclose = function() {
       setStatus('reconnecting');
@@ -245,6 +246,48 @@
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(data));
     }
+  }
+
+  // --- Inspect ---
+  function handleInspect(reqId, data) {
+    var result = { found: false, selector: data.selector || '' };
+    try {
+      // Try to query the iframe first (same-origin HTML projects)
+      var iframe = document.getElementById('app-frame');
+      var doc = null;
+      try { doc = iframe.contentDocument || iframe.contentWindow.document; } catch(e) {}
+
+      var el = null;
+      if (doc && data.selector) {
+        el = doc.querySelector(data.selector);
+      }
+      if (!el && data.selector) {
+        el = document.querySelector(data.selector);
+      }
+
+      if (el) {
+        var rect = el.getBoundingClientRect();
+        var style = window.getComputedStyle(el);
+        result = {
+          found: true,
+          selector: data.selector,
+          tag: el.tagName.toLowerCase(),
+          text: (el.textContent || '').substring(0, 200),
+          rect: { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) },
+          display: style.display,
+          visibility: style.visibility,
+          color: style.color,
+          backgroundColor: style.backgroundColor,
+          fontSize: style.fontSize,
+          fontWeight: style.fontWeight,
+          className: el.className || '',
+          id: el.id || ''
+        };
+      }
+    } catch(e) {
+      result.error = e.message;
+    }
+    wsSend({type: 'inspect-data', id: reqId, data: result});
   }
 
   init();

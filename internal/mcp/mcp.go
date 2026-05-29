@@ -136,6 +136,22 @@ func (s *Server) handleToolsList(req Request) Response {
 			Description: "Capture a screenshot of the current preview page. Returns a base64 PNG image of what the user sees in the browser. Requires a browser to be connected to the preview server.",
 			InputSchema: InputSchema{Type: "object", Properties: map[string]Property{}},
 		},
+		{
+			Name:        "preview_inspect",
+			Description: "Query an element's position, size, styles, and text content from the preview page. Provide a CSS selector to target a specific element (e.g. 'button', '.card', '#app').",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"selector": {Type: "string", Description: "CSS selector to query (e.g. 'h1', '.button', '#app')"},
+				},
+				Required: []string{"selector"},
+			},
+		},
+		{
+			Name:        "preview_diff",
+			Description: "Compare the current preview screenshot with the previous one. Returns whether visual changes were detected, along with both before/after screenshots if changed. Useful for verifying that code changes produced the expected visual result.",
+			InputSchema: InputSchema{Type: "object", Properties: map[string]Property{}},
+		},
 	}
 	return Response{
 		JSONRPC: JSONRPCVersion,
@@ -194,6 +210,36 @@ func (s *Server) handleToolsCall(req Request) Response {
 					"message": "Screenshot not available. Open http://localhost:51820 in browser to see the preview. Ensure a browser tab is connected.",
 				}
 			}
+		}
+
+	case "preview_inspect":
+		selector := "body"
+		if sel, ok := params.Arguments["selector"]; ok {
+			if s, ok2 := sel.(string); ok2 && s != "" {
+				selector = s
+			}
+		}
+		resp, httpErr := s.client.Post(s.serverURL+"/api/inspect?selector="+selector, "application/json", nil)
+		if httpErr != nil {
+			err = &RPCError{Code: -32000, Message: httpErr.Error()}
+		} else {
+			defer resp.Body.Close()
+			raw, _ := io.ReadAll(resp.Body)
+			var data map[string]interface{}
+			json.Unmarshal(raw, &data)
+			result = data
+		}
+
+	case "preview_diff":
+		resp, httpErr := s.client.Get(s.serverURL + "/api/diff")
+		if httpErr != nil {
+			err = &RPCError{Code: -32000, Message: httpErr.Error()}
+		} else {
+			defer resp.Body.Close()
+			raw, _ := io.ReadAll(resp.Body)
+			var data map[string]interface{}
+			json.Unmarshal(raw, &data)
+			result = data
 		}
 	default:
 		err = &RPCError{Code: -32601, Message: "unknown tool: " + params.Name}

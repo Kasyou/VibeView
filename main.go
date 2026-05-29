@@ -74,7 +74,11 @@ func runPreview() {
 
 	go func() {
 		for range w.Events {
-			srv.Broadcast("reload", nil)
+			// Only force reload for HTML projects (no built-in HMR).
+			// Vite projects have their own HMR via the Vite dev server WebSocket.
+			if info.ServeLocal {
+				srv.Broadcast("reload", nil)
+			}
 		}
 	}()
 

@@ -27,21 +27,25 @@ func New(watchDirs []string) *Watcher {
 	}
 
 	for _, dir := range watchDirs {
-		filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-			if err != nil || !info.IsDir() {
-				return nil
-			}
-			base := filepath.Base(path)
-			if base == "node_modules" || base == ".git" || (len(base) > 0 && base[0] == '.') {
-				return filepath.SkipDir
-			}
-			fw.Add(path)
-			return nil
-		})
+		w.addDir(dir)
 	}
 
 	go w.loop()
 	return w
+}
+
+func (w *Watcher) addDir(dir string) {
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || !info.IsDir() {
+			return nil
+		}
+		base := filepath.Base(path)
+		if base == "node_modules" || base == ".git" || (len(base) > 0 && base[0] == '.') {
+			return filepath.SkipDir
+		}
+		w.fw.Add(path)
+		return nil
+	})
 }
 
 func (w *Watcher) loop() {
@@ -53,9 +57,16 @@ func (w *Watcher) loop() {
 
 	for {
 		select {
-		case <-w.fw.Events:
+		case evt := <-w.fw.Events:
+			// Track new directories so file changes inside them are detected
+			if evt.Op&fsnotify.Create != 0 {
+				if info, err := os.Stat(evt.Name); err == nil && info.IsDir() {
+					w.addDir(evt.Name)
+				}
+			}
 			timer.Reset(100 * time.Millisecond)
 			pending = true
+
 		case <-timer.C:
 			if pending {
 				select {
@@ -64,6 +75,7 @@ func (w *Watcher) loop() {
 				}
 				pending = false
 			}
+
 		case <-w.done:
 			timer.Stop()
 			return

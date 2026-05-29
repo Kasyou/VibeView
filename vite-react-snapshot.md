@@ -1,0 +1,61 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]: VibeView
+    - generic [ref=e4]:
+      - button "iPhone 15 Pro" [ref=e5] [cursor=pointer]
+      - button "Pixel 8" [ref=e6] [cursor=pointer]
+      - button "iPad" [ref=e7] [cursor=pointer]
+      - button "Full" [ref=e8] [cursor=pointer]
+      - button "Custom" [ref=e9] [cursor=pointer]
+    - generic [ref=e10]: live
+  - iframe [ref=e14]:
+    - generic [ref=f9e2]:
+      - generic [ref=f9e3]:
+        - generic [ref=f9e4]:
+          - img "React logo" [ref=f9e5]
+          - img "Vite logo" [ref=f9e6]
+        - generic [ref=f9e7]:
+          - heading "Get started" [level=1] [ref=f9e8]
+          - paragraph [ref=f9e9]:
+            - text: Edit
+            - code [ref=f9e10]: src/App.jsx
+            - text: and save to test
+            - code [ref=f9e11]: HMR
+        - button "Count is 0" [ref=f9e12]
+      - generic [ref=f9e13]:
+        - generic [ref=f9e14]:
+          - img [ref=f9e15]
+          - heading "Documentation" [level=2] [ref=f9e17]
+          - paragraph [ref=f9e18]: Your questions, answered
+          - list [ref=f9e19]:
+            - listitem [ref=f9e20]:
+              - link "Explore Vite" [ref=f9e21] [cursor=pointer]:
+                - /url: https://vite.dev/
+            - listitem [ref=f9e22]:
+              - link "Learn more" [ref=f9e23] [cursor=pointer]:
+                - /url: https://react.dev/
+        - generic [ref=f9e24]:
+          - img [ref=f9e25]
+          - heading "Connect with us" [level=2] [ref=f9e27]
+          - paragraph [ref=f9e28]: Join the Vite community
+          - list [ref=f9e29]:
+            - listitem [ref=f9e30]:
+              - link "GitHub" [ref=f9e31] [cursor=pointer]:
+                - /url: https://github.com/vitejs/vite
+                - img [ref=f9e32]
+                - text: GitHub
+            - listitem [ref=f9e34]:
+              - link "Discord" [ref=f9e35] [cursor=pointer]:
+                - /url: https://chat.vite.dev/
+                - img [ref=f9e36]
+                - text: Discord
+            - listitem [ref=f9e38]:
+              - link "X.com" [ref=f9e39] [cursor=pointer]:
+                - /url: https://x.com/vite_js
+                - img [ref=f9e40]
+                - text: X.com
+            - listitem [ref=f9e42]:
+              - link "Bluesky" [ref=f9e43] [cursor=pointer]:
+                - /url: https://bsky.app/profile/vite.dev
+                - img [ref=f9e44]
+                - text: Bluesky

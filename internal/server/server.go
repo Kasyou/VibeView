@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -36,9 +37,11 @@ type Server struct {
 	mu         sync.Mutex
 	console    []ConsoleMsg
 	httpSrv    *http.Server
-	screenshot string            // latest screenshot base64
-	scrReqs    map[string]chan string // pending screenshot requests
-	scrMu      sync.Mutex
+	screenshot     string                 // latest screenshot base64
+	prevScreenshot string                 // previous screenshot for diff comparison
+	scrReqs        map[string]chan string  // pending screenshot requests
+	inspReqs       map[string]chan string  // pending inspect requests
+	scrMu          sync.Mutex
 }
 
 func New(cfg Config) *Server {
@@ -46,7 +49,8 @@ func New(cfg Config) *Server {
 		cfg:     cfg,
 		mux:     http.NewServeMux(),
 		clients: make(map[*websocket.Conn]bool),
-		scrReqs: make(map[string]chan string),
+		scrReqs:  make(map[string]chan string),
+		inspReqs: make(map[string]chan string),
 		wsUp: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
@@ -66,6 +70,8 @@ func (s *Server) routes() {
 		handler: http.FileServer(http.Dir(s.cfg.ProjectDir)),
 	}))
 	s.mux.HandleFunc("/api/screenshot", s.handleScreenshot)
+	s.mux.HandleFunc("/api/inspect", s.handleInspect)
+	s.mux.HandleFunc("/api/diff", s.handleDiff)
 	s.mux.HandleFunc("/", s.renderer)
 }
 
@@ -172,12 +178,28 @@ func (s *Server) ws(w http.ResponseWriter, r *http.Request) {
 					delete(s.scrReqs, reqID)
 				}
 				s.scrMu.Unlock()
-				// Store latest screenshot
+				// Store latest screenshot, keep previous for diff
 				if image != "" {
 					s.mu.Lock()
+					s.prevScreenshot = s.screenshot
 					s.screenshot = image
 					s.mu.Unlock()
 				}
+			}
+			if msg["type"] == "inspect-data" {
+				data, ok := msg["data"].(map[string]interface{})
+				if !ok {
+					continue
+				}
+				reqID := str(msg["id"])
+				// Marshal data back to JSON string for the channel
+				jsonBytes, _ := json.Marshal(data)
+				s.scrMu.Lock()
+				if ch, ok := s.inspReqs[reqID]; ok {
+					ch <- string(jsonBytes)
+					delete(s.inspReqs, reqID)
+				}
+				s.scrMu.Unlock()
 			}
 		}
 	}()
@@ -226,6 +248,90 @@ func (s *Server) handleScreenshot(w http.ResponseWriter, r *http.Request) {
 
 	default:
 		http.Error(w, "method not allowed", 405)
+	}
+}
+
+func (s *Server) handleInspect(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", 405)
+		return
+	}
+
+	selector := r.URL.Query().Get("selector")
+	if selector == "" {
+		selector = "body"
+	}
+
+	reqID := fmt.Sprintf("insp-%d", time.Now().UnixNano())
+	ch := make(chan string, 1)
+	s.scrMu.Lock()
+	s.inspReqs[reqID] = ch
+	s.scrMu.Unlock()
+
+	s.Broadcast("inspect-request", map[string]string{
+		"id":       reqID,
+		"selector": selector,
+	})
+
+	select {
+	case result := <-ch:
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(result))
+	case <-time.After(5 * time.Second):
+		s.scrMu.Lock()
+		delete(s.inspReqs, reqID)
+		s.scrMu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"found":false,"error":"timeout"}`))
+	}
+}
+
+func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Request a fresh screenshot first
+	reqID := fmt.Sprintf("diff-%d", time.Now().UnixNano())
+	ch := make(chan string, 1)
+	s.scrMu.Lock()
+	s.scrReqs[reqID] = ch
+	s.scrMu.Unlock()
+
+	s.Broadcast("screenshot-request", map[string]string{"id": reqID})
+
+	var currentImg string
+	select {
+	case img := <-ch:
+		currentImg = img
+	case <-time.After(5 * time.Second):
+		s.scrMu.Lock()
+		delete(s.scrReqs, reqID)
+		s.scrMu.Unlock()
+		w.Write([]byte(`{"changed":false,"error":"screenshot timeout"}`))
+		return
+	}
+
+	s.mu.Lock()
+	prevImg := s.prevScreenshot
+	s.mu.Unlock()
+
+	if prevImg == "" {
+		w.Write([]byte(`{"changed":false,"message":"no previous screenshot to compare"}`))
+		return
+	}
+
+	// Compare: check overall length and a sample of bytes
+	changed := len(currentImg) != len(prevImg)
+	if !changed && len(currentImg) > 200 {
+		// Compare middle portion
+		mid := len(currentImg) / 2
+		changed = currentImg[mid:mid+100] != prevImg[mid:mid+100]
+	}
+
+	if changed {
+		fmt.Fprintf(w, `{"changed":true,"message":"visual changes detected","before":"%s","after":"%s"}`,
+			prevImg, currentImg)
+	} else {
+		w.Write([]byte(`{"changed":false,"message":"no visual changes detected"}`))
 	}
 }
 
