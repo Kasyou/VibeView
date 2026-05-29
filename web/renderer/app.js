@@ -9,6 +9,7 @@
   var ws;
 
   function init() {
+    loadPrefs();
     fetch('/api/config')
       .then(function(r) { return r.json(); })
       .then(function(cfg) { devServerURL = cfg.devServerURL; })
@@ -16,9 +17,43 @@
       .finally(function() {
         connectWS();
         setupDevicePicker();
+        // Restore saved device preference
+        if (currentDevice === 'custom') {
+          setCustomSize(customW, customH);
+        } else {
+          setDevice(currentDevice);
+        }
         loadApp();
       });
   }
+
+  // --- Preferences ---
+  var PREFS_KEY = 'vibeview_prefs';
+
+  function loadPrefs() {
+    try {
+      var raw = localStorage.getItem(PREFS_KEY);
+      if (raw) {
+        var p = JSON.parse(raw);
+        if (p.device) currentDevice = p.device;
+        if (p.customW) customW = p.customW;
+        if (p.customH) customH = p.customH;
+      }
+    } catch(e) {}
+  }
+
+  function savePrefs() {
+    try {
+      localStorage.setItem(PREFS_KEY, JSON.stringify({
+        device: currentDevice,
+        customW: customW,
+        customH: customH
+      }));
+    } catch(e) {}
+  }
+
+  var currentDevice = 'iphone15';
+  var customW = 375, customH = 812;
 
   function connectWS() {
     var proto = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -74,6 +109,8 @@
   }
 
   function setDevice(name) {
+    currentDevice = name;
+    savePrefs();
     var buttons = document.querySelectorAll('#device-picker button');
     for (var i = 0; i < buttons.length; i++) {
       var b = buttons[i];
@@ -93,6 +130,8 @@
   }
 
   function setCustomSize(w, h) {
+    customW = w; customH = h;
+    savePrefs();
     var buttons = document.querySelectorAll('#device-picker button');
     for (var i = 0; i < buttons.length; i++) {
       buttons[i].classList.remove('active');
