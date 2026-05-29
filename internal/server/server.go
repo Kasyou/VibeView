@@ -1,9 +1,11 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -29,6 +31,7 @@ type Server struct {
 	clients map[*websocket.Conn]bool
 	mu      sync.Mutex
 	console []ConsoleMsg
+	httpSrv *http.Server
 }
 
 func New(cfg Config) *Server {
@@ -152,7 +155,17 @@ func (s *Server) Broadcast(msgType string, data interface{}) {
 
 func (s *Server) Start() error {
 	addr := fmt.Sprintf(":%d", s.cfg.Port)
-	return http.ListenAndServe(addr, s.mux)
+	s.httpSrv = &http.Server{Addr: addr, Handler: s.mux}
+	return s.httpSrv.ListenAndServe()
+}
+
+func (s *Server) Close() error {
+	if s.httpSrv != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		return s.httpSrv.Shutdown(ctx)
+	}
+	return nil
 }
 
 func escapeJSON(s string) string {
