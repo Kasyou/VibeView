@@ -34,23 +34,36 @@ func Detect(root string) ProjectInfo {
 	hasVite := viteConfigExists(root)
 	hasHTML := fileExists(filepath.Join(root, "index.html"))
 
+	// Try framework detection by Vite plugin first (most reliable),
+	// then by framework dependency, then by project config file.
 	switch {
-	case pkg.hasDep("react") && hasVite:
+	// React: @vitejs/plugin-react or react dep with vite
+	case pkg.hasDep("@vitejs/plugin-react") || (pkg.hasDep("react") && hasVite):
 		info.Type = React
 		info.WatchDirs = dirs(root, "src")
 		info.DevServerURL = "http://localhost:5173"
-	case pkg.hasDep("vue") && hasVite:
+
+	// Vue: @vitejs/plugin-vue or vue dep with vite
+	case pkg.hasDep("@vitejs/plugin-vue") || (pkg.hasDep("vue") && hasVite):
 		info.Type = Vue
 		info.WatchDirs = dirs(root, "src")
 		info.DevServerURL = "http://localhost:5173"
-	case pkg.hasDep("svelte") || pkg.hasDep("@sveltejs/vite-plugin-svelte"):
+
+	// Svelte: @sveltejs/vite-plugin-svelte, svelte dep, or SvelteKit
+	case pkg.hasDep("@sveltejs/vite-plugin-svelte") ||
+		pkg.hasDep("@sveltejs/kit") ||
+		pkg.hasDep("svelte"):
 		info.Type = Svelte
 		info.WatchDirs = dirs(root, "src")
 		info.DevServerURL = "http://localhost:5173"
+
+	// HTML: has an index.html
 	case hasHTML:
 		info.Type = HTML
 		info.WatchDirs = []string{root}
 		info.ServeLocal = true
+
+	// Fallback: treat as HTML project (serve files locally)
 	default:
 		info.Type = HTML
 		info.WatchDirs = []string{root}

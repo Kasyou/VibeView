@@ -67,3 +67,49 @@ func TestDetectWatchDirs(t *testing.T) {
 		t.Errorf("expected src dir, got %s", r.WatchDirs[0])
 	}
 }
+
+func TestDetectReactViaPlugin(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "package.json"),
+		[]byte(`{"devDependencies":{"@vitejs/plugin-react":"^4.0.0","vite":"^5.0.0"}}`), 0644)
+	os.WriteFile(filepath.Join(dir, "vite.config.js"), []byte(`export default {}`), 0644)
+
+	r := Detect(dir)
+	if r.Type != React {
+		t.Errorf("expected react via @vitejs/plugin-react, got %s", r.Type)
+	}
+}
+
+func TestDetectVueViaPlugin(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "package.json"),
+		[]byte(`{"devDependencies":{"@vitejs/plugin-vue":"^5.0.0","vite":"^5.0.0"}}`), 0644)
+	os.WriteFile(filepath.Join(dir, "vite.config.js"), []byte(`export default {}`), 0644)
+
+	r := Detect(dir)
+	if r.Type != Vue {
+		t.Errorf("expected vue via @vitejs/plugin-vue, got %s", r.Type)
+	}
+}
+
+func TestDetectSvelteKit(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "package.json"),
+		[]byte(`{"devDependencies":{"@sveltejs/kit":"^2.0.0"}}`), 0644)
+
+	r := Detect(dir)
+	if r.Type != Svelte {
+		t.Errorf("expected svelte via @sveltejs/kit, got %s", r.Type)
+	}
+}
+
+func TestDetectUnknownFallsToHTML(t *testing.T) {
+	dir := t.TempDir()
+	r := Detect(dir)
+	if r.Type != HTML {
+		t.Errorf("expected html for empty dir, got %s", r.Type)
+	}
+	if !r.ServeLocal {
+		t.Error("empty dir should enable ServeLocal")
+	}
+}

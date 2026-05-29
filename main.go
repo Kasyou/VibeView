@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 
 	"vibeview/internal/detector"
 	"vibeview/internal/mcp"
@@ -17,7 +18,6 @@ import (
 const version = "0.1.0"
 
 func main() {
-	// Handle subcommands / help
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "mcp":
@@ -40,16 +40,27 @@ func runPreview() {
 	dir := flag.String("dir", "", "Project directory (default: current directory)")
 	flag.CommandLine.Parse(os.Args[1:])
 
+	// Resolve project directory
 	projectDir := *dir
 	if projectDir == "" {
 		var err error
 		projectDir, err = os.Getwd()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "  %s %v\n", term.RedText("Error:"), err)
 			os.Exit(1)
 		}
 	}
-	projectDir, _ = filepath.Abs(projectDir)
+	projectDir, err := filepath.Abs(projectDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  %s cannot resolve path: %v\n", term.RedText("Error:"), err)
+		os.Exit(1)
+	}
+
+	// Validate directory exists
+	if fi, err := os.Stat(projectDir); err != nil || !fi.IsDir() {
+		fmt.Fprintf(os.Stderr, "  %s directory not found: %s\n", term.RedText("Error:"), projectDir)
+		os.Exit(1)
+	}
 
 	info := detector.Detect(projectDir)
 
@@ -79,19 +90,19 @@ func runPreview() {
 
 	go func() {
 		for range w.Events {
-			// Only force reload for HTML projects (no built-in HMR).
-			// Vite projects have their own HMR via the Vite dev server WebSocket.
 			if info.ServeLocal {
 				srv.Broadcast("reload", nil)
 			}
 		}
 	}()
 
+	// Graceful shutdown
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
 	go func() {
-		sig := make(chan os.Signal, 1)
-		signal.Notify(sig, os.Interrupt)
-		<-sig
-		fmt.Println("\n  Shutting down...")
+		<-sigCh
+		fmt.Println("\n  " + term.DimText("Shutting down..."))
+		w.Close()
 		srv.Close()
 		os.Exit(0)
 	}()
@@ -101,13 +112,20 @@ func runPreview() {
 	fmt.Println()
 
 	if err := srv.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		// Friendly error for port already in use
+		if strings.Contains(err.Error(), "bind") ||
+			strings.Contains(err.Error(), "address already in use") ||
+			strings.Contains(err.Error(), "in use") {
+			fmt.Fprintf(os.Stderr, "  %s port %d is already in use.\n", term.RedText("Error:"), *port)
+			fmt.Fprintf(os.Stderr, "  %s\n", term.DimText("Try: vibeview --port " + fmt.Sprintf("%d", *port+1)))
+		} else {
+			fmt.Fprintf(os.Stderr, "  %s %v\n", term.RedText("Error:"), err)
+		}
 		os.Exit(1)
 	}
 }
 
 func runMCP() {
-	// parse flags from os.Args[2:] (skip "mcp")
 	port := flag.Int("port", 51820, "Preview server port")
 	flag.CommandLine.Parse(os.Args[2:])
 
