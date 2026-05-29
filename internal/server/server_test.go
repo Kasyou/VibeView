@@ -110,3 +110,52 @@ func TestStaticDelegation(t *testing.T) {
 		t.Errorf("expected 'static', got '%s'", w.Body.String())
 	}
 }
+
+func TestInjectHandlerSkipsNonHTML(t *testing.T) {
+	h := &injectHandler{
+		handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/css")
+			w.Write([]byte("body{color:red}"))
+		}),
+	}
+	req := httptest.NewRequest("GET", "/style.css", nil)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	if !strings.Contains(w.Body.String(), "body{color:red}") {
+		t.Error("non-HTML should pass through unchanged")
+	}
+	if strings.Contains(w.Body.String(), "vibeview-error") {
+		t.Error("CSS should not be injected with error script")
+	}
+}
+
+func TestInjectHandlerInjectsHTML(t *testing.T) {
+	h := &injectHandler{
+		handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(200)
+			w.Write([]byte("<html><head></head><body><h1>Hi</h1></body></html>"))
+		}),
+	}
+	req := httptest.NewRequest("GET", "/page.html", nil)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	if !strings.Contains(w.Body.String(), "vibeview-error") {
+		t.Error("HTML response should be injected with error script")
+	}
+	if !strings.Contains(w.Body.String(), "<h1>Hi</h1>") {
+		t.Error("original content should be preserved")
+	}
+}
+
+func TestDiffNoPrevious(t *testing.T) {
+	cfg := testConfig()
+	s := New(cfg)
+	req := httptest.NewRequest("GET", "/api/diff", nil)
+	w := httptest.NewRecorder()
+	s.mux.ServeHTTP(w, req)
+	// Without a browser connected, diff returns unchanged/no-prev message
+	if w.Code != 200 {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+}

@@ -10,6 +10,7 @@ import (
 	"vibeview/internal/detector"
 	"vibeview/internal/mcp"
 	"vibeview/internal/server"
+	"vibeview/internal/term"
 	"vibeview/internal/watcher"
 )
 
@@ -57,9 +58,13 @@ func runPreview() {
 		devURL = fmt.Sprintf("http://localhost:%d/_app/index.html", *port)
 	}
 
-	fmt.Println("  VibeView v" + version)
-	fmt.Printf("  Project:   %s\n", info.Type)
-	fmt.Printf("  Dev URL:   %s\n", devURL)
+	fmt.Println("  " + term.PinkText(term.BoldText("VibeView")) + " " + term.DimText("v"+version))
+	fmt.Printf("  %s  %s\n", term.DimText("Project:"), term.CyanText(string(info.Type)))
+	if info.ServeLocal {
+		fmt.Printf("  %s   %s\n", term.DimText("Mode:"), term.GreenText("local serve"))
+	} else {
+		fmt.Printf("  %s    %s\n", term.DimText("Dev:"), term.CyanText(devURL))
+	}
 
 	srv := server.New(server.Config{
 		Port:         *port,
@@ -91,8 +96,8 @@ func runPreview() {
 		os.Exit(0)
 	}()
 
-	fmt.Printf("  Preview:   http://localhost:%d\n", *port)
-	fmt.Printf("  Watching:  %v\n", info.WatchDirs)
+	fmt.Printf("  %s  %s\n", term.DimText("Preview:"), term.GreenText(fmt.Sprintf("http://localhost:%d", *port)))
+	fmt.Printf("  %s %v\n", term.DimText("Watching:"), info.WatchDirs)
 	fmt.Println()
 
 	if err := srv.Start(); err != nil {

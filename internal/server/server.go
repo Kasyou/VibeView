@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"vibeview/internal/term"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -158,11 +160,15 @@ func (s *Server) ws(w http.ResponseWriter, r *http.Request) {
 				})
 				s.mu.Unlock()
 
-				// Echo to terminal
+				// Echo to terminal with color
+				tag := term.RedText(level)
+				if level == "warn" || level == "warning" {
+					tag = term.PinkText(level)
+				}
 				if file != "" {
-					fmt.Fprintf(os.Stderr, "  [%s] %s (%s:%d)\n", level, message, file, line)
+					fmt.Fprintf(os.Stderr, "  %s %s %s\n", tag, message, term.DimText(fmt.Sprintf("(%s:%d)", file, line)))
 				} else {
-					fmt.Fprintf(os.Stderr, "  [%s] %s\n", level, message)
+					fmt.Fprintf(os.Stderr, "  %s %s\n", tag, message)
 				}
 			}
 			if msg["type"] == "screenshot-data" {
