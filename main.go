@@ -6,6 +6,7 @@ import (
 	"os/signal"
 
 	"vibeview/internal/detector"
+	"vibeview/internal/mcp"
 	"vibeview/internal/server"
 	"vibeview/internal/watcher"
 )
@@ -58,6 +59,14 @@ func main() {
 }
 
 func runMCP() {
-	fmt.Fprintln(os.Stderr, "MCP mode (not yet implemented)")
-	select {} // keep alive
+	serverURL := "http://localhost:51820"
+	if envURL := os.Getenv("VIBEVIEW_URL"); envURL != "" {
+		serverURL = envURL
+	}
+
+	mcpServer := mcp.New(serverURL)
+	if err := mcpServer.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "MCP error: %v\n", err)
+		os.Exit(1)
+	}
 }
