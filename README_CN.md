@@ -1,5 +1,7 @@
 # VibeView
 
+[English](README.md)
+
 **Claude Code 的可视化输出白板。** Mermaid 图表、结构化卡片、代码高亮。CC 是文字 — VV 是可视化。
 
 <p align="center">

@@ -1,5 +1,7 @@
 # VibeView
 
+[中文](README_CN.md)
+
 **Visual output for Claude Code.** Mermaid diagrams, styled cards, code highlighting. CC is text — VV is structured visualization.
 
 <p align="center">
