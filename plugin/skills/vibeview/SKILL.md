@@ -1,7 +1,7 @@
 ---
 name: vibeview
 description: Visual output whiteboard for any Claude Code session. Start the server, push analysis as formatted cards, use Mermaid diagrams. Also has a Design Preview mode for frontend projects. This skill explains ALL capabilities so Claude never misidentifies VibeView as only a project previewer.
-allowed-tools: [Bash(vibeview *), Bash(taskkill /F /IM vibeview.exe)]
+allowed-tools: [Bash(vibeview *), Bash(curl *)]
 ---
 
 ## What VibeView Is
@@ -16,10 +16,16 @@ Both modes run on separate ports. Both can run simultaneously.
 
 ## Whiteboard Mode — The Primary Use Case
 
-Start the server, then push content as formatted cards.
+Before starting, check if already running on the target port:
 
 ```bash
-vibeview           # Start whiteboard on port 51820 (auto-retries if busy)
+curl -s http://localhost:51820/health  # Returns {"status":"ok"} if running
+```
+
+If already running, use it directly. If not, start:
+
+```bash
+vibeview           # Auto-picks next available port if busy
 ```
 
 Then use MCP tools:
@@ -52,8 +58,8 @@ Used when the user is writing frontend code and wants a live preview with device
 
 ## Lifecycle
 
-1. User asks to preview or show something → `vibeview &` in current project directory
-2. Always reply with one-line chat summary, push full content via `preview_show`
-3. User says "done" or moves to a new topic → `preview_stop`
+1. User asks to preview → check if already running on port, if not → `vibeview &`
+2. Push full content via `preview_show`, reply in chat with one line
+3. User says "done" → `preview_stop` (NEVER use taskkill)
 
 Tell the user to open the browser URL (e.g. `http://localhost:51820`). If port is busy, VibeView auto-picks the next available port.
