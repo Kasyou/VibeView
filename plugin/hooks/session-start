@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# VibeView SessionStart hook — auto-starts the preview server if not running
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+PORT="${VIBEVIEW_PORT:-51820}"
+HEALTH_URL="http://localhost:${PORT}/health"
+
+# Check if VibeView preview server is already running
+if curl -s --connect-timeout 1 "${HEALTH_URL}" > /dev/null 2>&1; then
+    exit 0
+fi
+
+# Start VibeView preview server in background
+if command -v vibeview &> /dev/null; then
+    nohup vibeview --port "${PORT}" > /dev/null 2>&1 &
+elif [ -f "${PLUGIN_ROOT}/bin/vibeview" ]; then
+    nohup "${PLUGIN_ROOT}/bin/vibeview" --port "${PORT}" > /dev/null 2>&1 &
+elif [ -f "${PLUGIN_ROOT}/bin/vibeview.exe" ]; then
+    nohup "${PLUGIN_ROOT}/bin/vibeview.exe" --port "${PORT}" > /dev/null 2>&1 &
+fi
+
+exit 0

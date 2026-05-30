@@ -1,0 +1,24 @@
+{
+  "name": "vibeview",
+  "description": "Android Studio-style instant UI preview for vibe coding. Let Claude Code see the rendered output and self-correct UI issues in real time.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Kasyou",
+    "email": "1657690975@qq.com"
+  },
+  "homepage": "https://github.com/Kasyou/VibeView",
+  "repository": "https://github.com/Kasyou/VibeView",
+  "license": "MIT",
+  "keywords": [
+    "ui",
+    "preview",
+    "live-reload",
+    "vite",
+    "react",
+    "vue",
+    "svelte",
+    "mcp",
+    "screenshot",
+    "visual-testing"
+  ]
+}
