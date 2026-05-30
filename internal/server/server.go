@@ -58,6 +58,7 @@ type Server struct {
 	cardQueue      []cardMsg               // queued cards delivered on browser connect
 	allCards       []cardMsg               // complete history (all cards, unlimited)
 	cardSeq        int                     // auto-increment card sequence number
+	lastActivity   time.Time               // last time any request was made
 	scrMu          sync.Mutex
 }
 
@@ -67,12 +68,27 @@ func New(cfg Config) *Server {
 		mux:     http.NewServeMux(),
 		clients: make(map[*websocket.Conn]bool),
 		scrReqs:  make(map[string]chan string),
-		inspReqs: make(map[string]chan string),
+		inspReqs:     make(map[string]chan string),
+		lastActivity: time.Now(),
 		wsUp: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
 	}
 	s.routes()
+	// Auto-shutdown after 10 minutes idle
+	go func() {
+		for {
+			time.Sleep(1 * time.Minute)
+			s.mu.Lock()
+			idle := time.Since(s.lastActivity)
+			noClients := len(s.clients) == 0
+			s.mu.Unlock()
+			if noClients && idle > 10*time.Minute {
+				s.Close()
+				os.Exit(0)
+			}
+		}
+	}()
 	return s
 }
 
@@ -467,6 +483,7 @@ func (s *Server) handleShow(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) pushCard(title, content string) {
 	s.mu.Lock()
+	s.lastActivity = time.Now()
 	s.cardSeq++
 	card := cardMsg{
 		Seq:     s.cardSeq,

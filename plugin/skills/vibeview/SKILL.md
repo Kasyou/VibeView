@@ -58,8 +58,9 @@ Used when the user is writing frontend code and wants a live preview with device
 
 ## Lifecycle
 
-1. User asks to preview → check if already running on port, if not → `vibeview &`
+1. User asks to preview → check `curl -s localhost:51820/health`, if not running → `vibeview &`
 2. Push full content via `preview_show`, reply in chat with one line
-3. User says "done" → `preview_stop` (NEVER use taskkill)
+3. Session ending → call `preview_stop` to free the port
+4. If user closes Claude Code without stopping: server auto-exits after 10 minutes idle
 
 Tell the user to open the browser URL (e.g. `http://localhost:51820`). If port is busy, VibeView auto-picks the next available port.
