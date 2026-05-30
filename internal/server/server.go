@@ -429,23 +429,39 @@ func (s *Server) handleShow(w http.ResponseWriter, r *http.Request) {
 	body, _ := io.ReadAll(r.Body)
 	var data map[string]interface{}
 	if err := json.Unmarshal(body, &data); err != nil {
-		// Try parsing as raw text
 		content := strings.TrimSpace(string(body))
 		if content != "" {
-			s.Broadcast("show-content", map[string]string{"title": "", "content": content})
+			s.pushCard("", content)
 			w.Write([]byte(`{"ok":true}`))
 			return
 		}
 	}
 
+	// Batch cards: {"cards": [{"title":"T1","content":"C1"}, ...]}
+	if cardsRaw, ok := data["cards"]; ok {
+		if cards, ok2 := cardsRaw.([]interface{}); ok2 {
+			for _, c := range cards {
+				if cm, ok3 := c.(map[string]interface{}); ok3 {
+					s.pushCard(str(cm["title"]), str(cm["content"]))
+				}
+			}
+			w.Write([]byte(`{"ok":true}`))
+			return
+		}
+	}
+
+	// Single card
 	content := str(data["content"])
 	title := str(data["title"])
-
 	if content == "" {
 		w.Write([]byte(`{"ok":false,"error":"content required"}`))
 		return
 	}
+	s.pushCard(title, content)
+	w.Write([]byte(`{"ok":true}`))
+}
 
+func (s *Server) pushCard(title, content string) {
 	s.mu.Lock()
 	s.cardSeq++
 	card := cardMsg{
@@ -460,11 +476,9 @@ func (s *Server) handleShow(w http.ResponseWriter, r *http.Request) {
 		s.cardQueue = append(s.cardQueue, card)
 	}
 	s.mu.Unlock()
-
 	if hasClients {
 		s.Broadcast("show-content", card)
 	}
-	w.Write([]byte(`{"ok":true}`))
 }
 
 func (s *Server) handleClear(w http.ResponseWriter, r *http.Request) {
