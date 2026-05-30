@@ -1,148 +1,80 @@
 # VibeView
 
-**"See what your AI codes."**
-
-VibeView gives you Android Studio-style instant UI preview for vibe coding. Write code in your editor, see the UI update instantly in a browser preview window. Doubles as an MCP Server so Claude Code can "see" the rendered output and self-correct UI issues.
+**Visual output for Claude Code.** Claude's analysis appears as styled cards in a browser whiteboard — not buried in chat.
 
 <p align="center">
-  <img src="screenshots/screenshot-iphone.png" alt="VibeView iPhone 15 Pro preview" width="600">
+  <img src="screenshots/whiteboard-demo-v0.3.1.png" alt="Claude Whiteboard" width="720">
 </p>
 
-## Features
+## Two Modes
 
-- **One-command start** — `vibeview` in any frontend project directory
-- **Framework auto-detect** — React (Vite), Vue (Vite), Svelte (Vite), plain HTML
-- **Instant hot reload** — WebSocket push on file change, 100ms debounce
-- **Device frames** — iPhone 15 Pro, Pixel 8, iPad, Full Width, or custom size
-- **Error boundary** — JS errors show red error card instead of white screen, auto-clear on fix
-- **Console bridge** — Browser errors forwarded to terminal in real time
-- **MCP Server** — 5 tools for Claude Code to see and interact with the preview
+| Mode | Command | Port | Purpose |
+|------|---------|------|---------|
+| Claude Whiteboard | `vibeview` | 51820 | AI reasoning → visual cards |
+| Design Preview | `vibeview design` | 51821 | Real-time UI preview (device frames) |
+
+### Claude Whiteboard
+
+Claude pushes analysis, decisions, and summaries as styled cards. Chat becomes secondary — the whiteboard is where users look.
 
 <p align="center">
-  <img src="screenshots/screenshot-error.png" alt="Error boundary overlay" width="400">
-  <img src="screenshots/screenshot-full.png" alt="Full width preview" width="400">
+  <img src="screenshots/design-demo-v0.3.1.png" alt="Design Preview" width="480">
 </p>
+
+### Design Preview
+
+Android Studio-style instant UI preview. File watcher + WebSocket hot reload. React/Vue/Svelte/HTML auto-detection.
 
 ## Quick Start
 
-### Install
-
 ```bash
-# Clone and build
-git clone https://github.com/Kasyou/VibeView.git
-cd VibeView
-go build -o vibeview.exe .
-
-# Or with Go install (requires Go 1.23+)
 go install github.com/Kasyou/VibeView@latest
-```
 
-### Usage
-
-```bash
-# Start preview in any frontend project
-cd my-react-app
+# Claude whiteboard
 vibeview
+# → Open http://localhost:51820
 
-# Open http://localhost:51820 in your browser
+# Design preview (project UI)
+vibeview design --dir ./my-project
+# → Open http://localhost:51821
 ```
 
-```bash
-# Custom port and directory
-vibeview --port 3000 --dir ~/my-project
+## MCP Tools (9)
 
-# Show help
-vibeview help
-```
+| Tool | Description |
+|------|-------------|
+| `preview_show` | Push markdown card to whiteboard |
+| `preview_clear` | Clear all cards |
+| `preview_history` | Paginated card history |
+| `preview_screenshot` | Capture preview as PNG |
+| `preview_inspect` | Query element by CSS selector |
+| `preview_console` | Read browser errors |
+| `preview_diff` | Compare before/after screenshots |
+| `preview_reload` | Force refresh |
+| `preview_stop` | Shutdown server |
 
-### With Claude Code (MCP)
+## Claude Code Plugin
 
-Add to `.mcp.json` in your project:
+Install `plugin/` to `~/.claude/plugins/cache/local/vibeview/0.1.0/` and enable in settings.json. Claude automatically gets the MCP tools and SKILL.md instruction.
 
-```json
-{
-  "mcpServers": {
-    "vibeview": {
-      "command": "vibeview",
-      "args": ["mcp"],
-      "env": {
-        "VIBEVIEW_URL": "http://localhost:51820"
-      }
-    }
-  }
-}
-```
-
-Then Claude Code can:
-
-| Tool | What the AI does |
-|------|-----------------|
-| `preview_screenshot` | Capture a screenshot of the current preview |
-| `preview_inspect` | Query element styles, position, dimensions |
-| `preview_console` | Read browser console errors/warnings |
-| `preview_diff` | Compare before/after screenshots for changes |
-| `preview_reload` | Trigger a preview refresh |
-
-### AI Self-Correction Flow
-
-```
-Claude generates React component
-  → preview_screenshot
-  → detects button overflow
-  → auto-fixes CSS
-  → preview_screenshot again to verify
-  → presents final result to user
-```
-
-## Architecture
-
-```
-Cursor/IDE (user edits code)
-    │ file change
-    ▼
-VibeView Core (Go binary, ~8MB)
-    ├── File Watcher (fsnotify, 100ms debounce)
-    ├── HTTP Server (:51820)
-    │   ├── /        → embedded preview page
-    │   ├── /_app/*  → serves project files (HTML mode)
-    │   ├── /ws      → WebSocket (reload, console, screenshot, inspect)
-    │   └── /api/*   → REST endpoints
-    └── MCP Server (stdio JSON-RPC)
-    │ WebSocket → Browser Preview
-    ▼
-Browser Preview Window
-    ├── Device frame (iPhone/Pixel/iPad/Full/Custom)
-    ├── iframe → user's project (Vite dev server or local files)
-    ├── Error boundary (red card overlay, auto-dismiss)
-    └── Console forwarding → WebSocket → terminal
-```
-
-## Supported Frameworks
-
-| Framework | Detection | HMR |
-|-----------|-----------|-----|
-| React (Vite) | `package.json` + `vite.config.*` | Vite built-in |
-| Vue (Vite) | `package.json` + `vite.config.*` | Vite built-in |
-| Svelte (Vite) | `package.json` + `vite.config.*` | Vite built-in |
-| Plain HTML | `index.html` exists | VibeView forced reload |
-
-## Tech Stack
-
-- **Go 1.23+** — Single binary, `go:embed` for renderer
-- **fsnotify** — Cross-platform file watching
-- **gorilla/websocket** — WebSocket for live reload
-- **Vanilla HTML/CSS/JS** — Zero-dependency renderer UI, embedded in binary
-
-## Build from Source
+## Build
 
 ```bash
 git clone https://github.com/Kasyou/VibeView.git
 cd VibeView
-go build -ldflags="-s -w" -o vibeview .
+go build -o vibeview .
 
-# Cross-compile for all platforms
-bash scripts/build.sh 0.1.0
+# Cross-compile
+bash scripts/build.sh
 ```
+
+## Highlights
+
+- Card annotations: `#seq · timestamp`
+- Card queue: survives browser disconnect
+- Card limit: 30 DOM / unlimited server history
+- Chinese UTF-8 support
+- 37 tests
 
 ## License
 
