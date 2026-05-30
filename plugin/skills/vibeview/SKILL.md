@@ -13,13 +13,13 @@ A **browser whiteboard** that Claude pushes visual output to. Two modes:
 
 ## How to Start
 
-**NEVER use taskkill. NEVER specify --port. Just run:**
+Just run ONE command. Do not check ports. Do not use --port. Do not curl health.
 
 ```bash
 vibeview &
 ```
 
-The binary handles everything: auto-picks an available port (51820, 51821, ...), starts the server, prints the URL. You do NOT need to check ports yourself.
+That's it. The binary auto-picks 51820, or 51821 if busy, or 51822... You will NEVER get "already running" — the binary handles it. If you check ports or use --port, you're doing it wrong.
 
 ## User Says "Restart"
 
