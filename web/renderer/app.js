@@ -167,6 +167,17 @@
     var url = devServerURL + '?_v=' + Date.now();
     iframe.src = url;
     hideError();
+    // Detect iframe load failure (e.g., Vite not running)
+    setTimeout(function() {
+      try {
+        var doc = iframe.contentDocument || iframe.contentWindow.document;
+        if (doc && doc.body && doc.body.innerHTML.trim() === '') {
+          showError('Dev server may not be running', devServerURL, 0);
+        }
+      } catch(e) {
+        showError('Cannot connect to ' + devServerURL, 'Check that the dev server is running', 0);
+      }
+    }, 5000);
   }
 
   function showError(message, file, line) {

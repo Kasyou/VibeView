@@ -40,11 +40,18 @@ func main() {
 
 func runPreview()          { runPreviewMode("claude") }
 func runPreviewMode(defaultMode string) {
-	port := flag.Int("port", 0, "HTTP server port (default: 51820 Claude, 51821 Design)")
-	mode := flag.String("mode", defaultMode, "Mode: claude (AI whiteboard) or design (instant preview)")
-	ontop := flag.Bool("ontop", false, "Print PowerShell command to pin preview window always-on-top")
-	dir := flag.String("dir", "", "Project directory (default: current directory)")
-	flag.CommandLine.Parse(os.Args[1:])
+	fs := flag.NewFlagSet("vibeview", flag.ExitOnError)
+	port := fs.Int("port", 0, "HTTP server port (default: 51820 Claude, 51821 Design)")
+	mode := fs.String("mode", defaultMode, "Mode: claude (AI whiteboard) or design (instant preview)")
+	ontop := fs.Bool("ontop", false, "Print PowerShell command to pin preview window always-on-top")
+	dir := fs.String("dir", "", "Project directory (default: current directory)")
+
+	// Skip first arg if it's a subcommand (design, mcp, etc.)
+	args := os.Args[1:]
+	if len(args) > 0 && args[0] == "design" {
+		args = args[1:]
+	}
+	fs.Parse(args)
 
 	if *port == 0 {
 		if *mode == "design" {
