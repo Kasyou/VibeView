@@ -1,120 +1,76 @@
 #!/usr/bin/env bash
-# VibeView Stop hook — auto-pushes Claude's response to the whiteboard.
-# Reads the current session's JSONL transcript, extracts Claude's last text,
-# and POSTs it to the VibeView whiteboard.
+# VibeView Stop hook — pushes Claude's last response to the whiteboard
 set -euo pipefail
 
-PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PORT="${VIBEVIEW_PORT:-51820}"
-SESSION_FILE="${CLAUDE_SESSION_FILE:-}"
 
-# ---- Find the session transcript ----
-if [ -z "$SESSION_FILE" ]; then
-    # Try to find the most recently modified JSONL in the project
-    PROJECT_NAME=$(echo "$PWD" | sed 's/[^a-zA-Z0-9]/-/g; s/^-*//; s/-*$//; s/^/\//; s/\/$//')
-    CLAUDE_DIR="$HOME/.claude"
-    # Look for session by most recent JSONL
-    SESSION_FILE=$(find "$CLAUDE_DIR/projects" -name "*.jsonl" -newer "$PLUGIN_ROOT/.last-push" 2>/dev/null | head -1)
-    if [ -z "$SESSION_FILE" ]; then
-        SESSION_FILE=$(find "$CLAUDE_DIR/projects" -name "*.jsonl" -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2)
-    fi
-fi
-
-if [ -z "$SESSION_FILE" ] || [ ! -f "$SESSION_FILE" ]; then
-    exit 0
-fi
-
-# ---- Check if VibeView whiteboard is running ----
+# Only run if whiteboard is up
 if ! curl -s --connect-timeout 1 "http://localhost:${PORT}/health" > /dev/null 2>&1; then
     exit 0
 fi
 
-# Check it's Claude mode (whiteboard), not Design mode
-config=$(curl -s --connect-timeout 1 "http://localhost:${PORT}/api/config" 2>/dev/null || echo '{}')
-mode=$(echo "$config" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('mode','claude'))" 2>/dev/null || echo 'claude')
+# Confirm it's Claude mode
+mode=$(curl -s --connect-timeout 1 "http://localhost:${PORT}/api/config" | python3 -c "import json,sys; print(json.load(sys.stdin).get('mode',''))" 2>/dev/null)
 if [ "$mode" != "claude" ]; then
     exit 0
 fi
 
-# ---- Extract last assistant text message ----
-LAST_TEXT=$(python3 -c "
-import json, sys
-
-# Read with UTF-8 encoding
-lines = sys.stdin.buffer.read().decode('utf-8').splitlines()
-for line in reversed(lines):
-    line = line.strip()
-    if not line:
-        continue
-    try:
-        d = json.loads(line)
-    except:
-        continue
-    if d.get('type') != 'assistant':
-        continue
-    msg = d.get('message', {})
-    content = msg.get('content', [])
-    if not isinstance(content, list):
-        continue
-    # Collect all text blocks from this message
-    texts = []
-    for item in content:
-        if item.get('type') == 'text':
-            texts.append(item.get('text', ''))
-    if texts:
-        print(json.dumps({'text': '\n\n'.join(texts)}))
-        break
-" < "$SESSION_FILE" 2>/dev/null)
-
-if [ -z "$LAST_TEXT" ]; then
+# Find the session JSONL (most recently modified)
+SESSION_DIR="$HOME/.claude/projects"
+LATEST=$(find "$SESSION_DIR" -name "*.jsonl" -printf "%T@ %p\n" 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2)
+if [ -z "$LATEST" ] || [ ! -f "$LATEST" ]; then
     exit 0
 fi
 
-# ---- Skip if already pushed (dedup by storing last text hash) ----
-TEXT_HASH=$(echo "$LAST_TEXT" | md5sum 2>/dev/null | cut -d' ' -f1 || echo "$LAST_TEXT" | cksum | cut -d' ' -f1)
-LAST_HASH_FILE="$PLUGIN_ROOT/.last-push-hash"
-if [ -f "$LAST_HASH_FILE" ]; then
-    if [ "$(cat "$LAST_HASH_FILE")" = "$TEXT_HASH" ]; then
-        exit 0
-    fi
-fi
-echo "$TEXT_HASH" > "$LAST_HASH_FILE"
-
-# ---- Extract a title (first heading or first sentence) ----
-TITLE=$(echo "$LAST_TEXT" | python3 -c "
-import sys,json
-data = json.loads(sys.stdin.read())
-text = data.get('text','')
-# Use first ## heading as title
-for line in text.split('\n'):
-    line = line.strip()
-    if line.startswith('## '):
-        print(line[3:][:60])
-        sys.exit(0)
-# Fallback: first sentence
-first = text.split('.')[0].strip()
-if len(first) > 10:
-    print(first[:80])
-else:
-    print('Claude')
-" 2>/dev/null)
-
-CONTENT=$(echo "$LAST_TEXT" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('text',''))" 2>/dev/null)
-
-# ---- Push to whiteboard ----
-if [ -n "$CONTENT" ]; then
-    python3 -c "
+# Extract last assistant text and push
+python3 -c "
 import json, urllib.request
-data = json.dumps({'title': '''${TITLE}''', 'content': '''${CONTENT}'''}, ensure_ascii=False).encode('utf-8')
-try:
-    req = urllib.request.Request('http://localhost:${PORT}/api/show', data=data, headers={'Content-Type': 'application/json; charset=utf-8'}, method='POST')
-    urllib.request.urlopen(req, timeout=3)
-except:
-    pass
-" 2>/dev/null || true
-fi
 
-# Update timestamp for next run
-touch "$PLUGIN_ROOT/.last-push"
+with open('${LATEST}', encoding='utf-8') as f:
+    lines = f.readlines()
+
+last_text = ''
+for line in reversed(lines):
+    try: d = json.loads(line.strip())
+    except: continue
+    if d.get('type') == 'assistant':
+        for c in d.get('message',{}).get('content',[]):
+            if isinstance(c,dict) and c.get('type')=='text':
+                last_text = c['text']
+                break
+    if last_text:
+        break
+
+if not last_text:
+    exit()
+
+# Extract title from first ## or first sentence
+title = 'Claude'
+for line in last_text.split('\n'):
+    if line.strip().startswith('## '):
+        title = line.strip()[3:][:80]
+        break
+if title == 'Claude':
+    first = last_text.split('.')[0].strip()
+    if len(first) > 10:
+        title = first[:80]
+
+# Dedup: skip if same as last push
+import os, hashlib
+h = hashlib.md5(last_text.encode()).hexdigest()
+hash_file = os.path.expanduser('~/.vibeview-last-hash')
+try:
+    with open(hash_file) as f:
+        if f.read().strip() == h:
+            exit()
+except: pass
+with open(hash_file, 'w') as f:
+    f.write(h)
+
+# Push
+data = json.dumps({'title': title, 'content': last_text[:2000]}, ensure_ascii=False).encode('utf-8')
+req = urllib.request.Request(f'http://localhost:${PORT}/api/show', data=data, headers={'Content-Type': 'application/json; charset=utf-8'}, method='POST')
+urllib.request.urlopen(req, timeout=5)
+" 2>/dev/null || true
 
 exit 0
