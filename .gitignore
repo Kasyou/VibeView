@@ -1,4 +1,7 @@
 vibeview.exe
-.playwright-mcp/
-test-vite-react/
+vibeview.exe~
 build/
+test-vite-react/
+ClaudeMD/
+docs/
+.vibeview/
