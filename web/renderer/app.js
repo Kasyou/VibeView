@@ -6,25 +6,42 @@
   };
 
   var devServerURL = '';
+  var appMode = 'claude';
   var ws;
 
   function init() {
     loadPrefs();
     fetch('/api/config')
       .then(function(r) { return r.json(); })
-      .then(function(cfg) { devServerURL = cfg.devServerURL; })
+      .then(function(cfg) {
+        devServerURL = cfg.devServerURL;
+        if (cfg.mode === 'design') appMode = 'design';
+      })
       .catch(function() { devServerURL = 'http://localhost:5173'; })
       .finally(function() {
         connectWS();
-        setupDevicePicker();
-        // Restore saved device preference
-        if (currentDevice === 'custom') {
+        if (appMode === 'design') {
+          setupDesignMode();
+        } else {
+          setupDevicePicker();
+        }
+        // Restore saved device preference (claude mode) or force full (design mode)
+        if (appMode === 'design') {
+          setDevice('full');
+        } else if (currentDevice === 'custom') {
           setCustomSize(customW, customH);
         } else {
           setDevice(currentDevice);
         }
         loadApp();
       });
+  }
+
+  function setupDesignMode() {
+    var picker = document.getElementById('device-picker');
+    if (picker) picker.style.display = 'none';
+    var brand = document.getElementById('brand');
+    if (brand) brand.textContent = 'VibeView Design';
   }
 
   // --- Preferences ---

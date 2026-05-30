@@ -36,9 +36,25 @@ func main() {
 }
 
 func runPreview() {
-	port := flag.Int("port", 51820, "HTTP server port")
+	port := flag.Int("port", 0, "HTTP server port (default: 51820 Claude, 51821 Design)")
+	mode := flag.String("mode", "claude", "Mode: claude (AI collaboration) or design (instant preview)")
 	dir := flag.String("dir", "", "Project directory (default: current directory)")
 	flag.CommandLine.Parse(os.Args[1:])
+
+	if *port == 0 {
+		if *mode == "design" {
+			*port = 51821
+		} else {
+			*port = 51820
+		}
+	}
+
+	var label string
+	if *mode == "design" {
+		label = "Design"
+	} else {
+		label = "Claude"
+	}
 
 	// Resolve project directory
 	projectDir := *dir
@@ -69,18 +85,21 @@ func runPreview() {
 		devURL = fmt.Sprintf("http://localhost:%d/_app/index.html", *port)
 	}
 
-	fmt.Println("  " + term.PinkText(term.BoldText("VibeView")) + " " + term.DimText("v"+version))
+	fmt.Println("  " + term.PinkText(term.BoldText("VibeView")) + " " + term.DimText("v"+version) + "  " + term.CyanText("["+label+"]"))
 	fmt.Printf("  %s  %s\n", term.DimText("Project:"), term.CyanText(string(info.Type)))
-	if info.ServeLocal {
-		fmt.Printf("  %s   %s\n", term.DimText("Mode:"), term.GreenText("local serve"))
+	if *mode == "design" {
+		fmt.Printf("  %s   %s\n", term.DimText("Mode:"), term.GreenText("instant preview"))
+	} else if info.ServeLocal {
+		fmt.Printf("  %s   %s\n", term.DimText("Mode:"), term.GreenText("local serve + MCP"))
 	} else {
-		fmt.Printf("  %s    %s\n", term.DimText("Dev:"), term.CyanText(devURL))
+		fmt.Printf("  %s    %s (MCP)\n", term.DimText("Dev:"), term.CyanText(devURL))
 	}
 
 	srv := server.New(server.Config{
 		Port:         *port,
 		DevServerURL: devURL,
 		ProjectDir:   projectDir,
+		Mode:         *mode,
 		RendererHTML: rendererHTMLBytes(),
 		RendererFS:   rendererAssets(),
 	})

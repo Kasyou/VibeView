@@ -20,6 +20,7 @@ type Config struct {
 	Port         int
 	DevServerURL string
 	ProjectDir   string
+	Mode         string // "claude" or "design"
 	RendererHTML []byte
 	RendererFS   http.Handler
 }
@@ -85,7 +86,7 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) config(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, `{"devServerURL":"%s"}`, s.cfg.DevServerURL)
+	fmt.Fprintf(w, `{"devServerURL":"%s","mode":"%s"}`, s.cfg.DevServerURL, s.cfg.Mode)
 }
 
 func (s *Server) renderer(w http.ResponseWriter, r *http.Request) {
