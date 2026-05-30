@@ -85,7 +85,7 @@ func TestJSONRPCFormatting(t *testing.T) {
 	}
 }
 
-func TestFiveTools(t *testing.T) {
+func TestSixTools(t *testing.T) {
 	s := &Server{client: nil, serverURL: "http://localhost:51820"}
 	req := Request{JSONRPC: "2.0", ID: 1, Method: "tools/list"}
 	resp := s.handle(req)
@@ -97,14 +97,14 @@ func TestFiveTools(t *testing.T) {
 		names[tool.Name] = true
 	}
 
-	expected := []string{"preview_reload", "preview_console", "preview_screenshot", "preview_inspect", "preview_diff"}
+	expected := []string{"preview_reload", "preview_console", "preview_screenshot", "preview_inspect", "preview_diff", "preview_stop"}
 	for _, name := range expected {
 		if !names[name] {
 			t.Errorf("missing tool: %s", name)
 		}
 	}
-	if len(tools) != 5 {
-		t.Errorf("expected 5 tools, got %d", len(tools))
+	if len(tools) != 6 {
+		t.Errorf("expected 6 tools, got %d", len(tools))
 	}
 }
 

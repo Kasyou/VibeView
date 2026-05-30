@@ -152,6 +152,11 @@ func (s *Server) handleToolsList(req Request) Response {
 			Description: "Compare the current preview screenshot with the previous one. Returns whether visual changes were detected, along with both before/after screenshots if changed. Useful for verifying that code changes produced the expected visual result.",
 			InputSchema: InputSchema{Type: "object", Properties: map[string]Property{}},
 		},
+		{
+			Name:        "preview_stop",
+			Description: "Stop the VibeView preview server. Use this when the user is done previewing to free up resources.",
+			InputSchema: InputSchema{Type: "object", Properties: map[string]Property{}},
+		},
 	}
 	return Response{
 		JSONRPC: JSONRPCVersion,
@@ -240,6 +245,15 @@ func (s *Server) handleToolsCall(req Request) Response {
 			var data map[string]interface{}
 			json.Unmarshal(raw, &data)
 			result = data
+		}
+
+	case "preview_stop":
+		resp, httpErr := s.client.Post(s.serverURL+"/api/shutdown", "application/json", nil)
+		if httpErr != nil {
+			err = &RPCError{Code: -32000, Message: httpErr.Error()}
+		} else {
+			resp.Body.Close()
+			result = map[string]string{"status": "stopped"}
 		}
 	default:
 		err = &RPCError{Code: -32601, Message: "unknown tool: " + params.Name}

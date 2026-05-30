@@ -74,6 +74,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/screenshot", s.handleScreenshot)
 	s.mux.HandleFunc("/api/inspect", s.handleInspect)
 	s.mux.HandleFunc("/api/diff", s.handleDiff)
+	s.mux.HandleFunc("/api/shutdown", s.handleShutdown)
 	s.mux.HandleFunc("/", s.renderer)
 }
 
@@ -345,6 +346,20 @@ func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.Write([]byte(`{"changed":false,"message":"no visual changes detected"}`))
 	}
+}
+
+func (s *Server) handleShutdown(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", 405)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"ok":true,"message":"shutting down"}`))
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		s.Close()
+		os.Exit(0)
+	}()
 }
 
 func (s *Server) Broadcast(msgType string, data interface{}) {

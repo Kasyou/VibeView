@@ -184,23 +184,19 @@
       ctx.font = 'bold 13px sans-serif';
       ctx.fillText('VibeView', 12, 24);
 
-      // Active device
       var active = document.querySelector('#device-picker button.active');
       var devName = active ? active.textContent : 'iPhone 15 Pro';
       ctx.fillStyle = '#a0a0b0';
       ctx.font = '11px sans-serif';
       ctx.fillText(devName, 85, 24);
 
-      // Status
       var statusEl = document.getElementById('status');
       var st = statusEl ? statusEl.textContent : '';
       ctx.fillStyle = st === 'live' ? '#4caf50' : '#e94560';
       ctx.fillText(st, W - 50, 24);
 
       // Device frame
-      var fw = 280, fh = 420, fx = (W - fw) / 2, fy = 60;
-      var r;
-
+      var fw = 280, fh = 420, fx = (W - fw) / 2, fy = 60, r;
       ctx.fillStyle = '#111';
       ctx.strokeStyle = '#333';
       ctx.lineWidth = 2;
@@ -209,17 +205,20 @@
       ctx.fill();
       ctx.stroke();
 
-      // Screen area
+      // Screen area — white background
       ctx.fillStyle = '#fff';
       r = 12;
       roundRect(ctx, fx, fy, fw, fh, r);
       ctx.fill();
 
+      // Show preview URL or content summary
+      ctx.fillStyle = '#333';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(devServerURL.replace('http://localhost:51820/_app/', ''), fx + fw/2, fy + fh/2 - 4);
       ctx.fillStyle = '#999';
       ctx.font = '11px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('App Preview', fx + fw/2, fy + fh/2 - 4);
-      ctx.fillText('(open browser to view)', fx + fw/2, fy + fh/2 + 12);
+      ctx.fillText('Preview active — open browser to view live', fx + fw/2, fy + fh/2 + 14);
       ctx.textAlign = 'left';
 
       // Notch for iPhone
@@ -244,13 +243,11 @@
         var errMsg = document.getElementById('error-message');
         var errFile = document.getElementById('error-file');
         var msg = errMsg ? errMsg.textContent.substring(0, 60) : '';
-
         ctx.fillStyle = 'rgba(233,69,96,0.95)';
         var ew = Math.min(460, W - 40), eh = 48;
         var ex = (W - ew) / 2, ey = H - eh - 16;
         roundRect(ctx, ex, ey, ew, eh, 8);
         ctx.fill();
-
         ctx.fillStyle = '#fff';
         ctx.font = '12px sans-serif';
         ctx.fillText('! ' + msg, ex + 14, ey + 20);
@@ -260,7 +257,8 @@
         }
       }
 
-      var png = canvas.toDataURL('image/png');
+      var png;
+      try { png = canvas.toDataURL('image/png'); } catch(e) { png = ''; }
       wsSend({type: 'screenshot-data', id: reqId, data: {image: png}});
     } catch(e) {
       wsSend({type: 'screenshot-data', id: reqId, data: {image: '', error: e.message}});

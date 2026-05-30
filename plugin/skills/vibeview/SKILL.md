@@ -1,95 +1,67 @@
 ---
 name: vibeview
-description: Use when building UIs, editing frontend code (React/Vue/Svelte/HTML/CSS), verifying visual changes, debugging layout issues, or checking the rendered output of code changes. Provides live preview, element inspection, console error reading, and screenshot comparison.
+description: Use when the user asks to preview UI, see what their frontend looks like, check layout, take screenshots of a running project, or start live-reload preview. Provides browser preview with device frames, element inspection, console forwarding, and screenshot comparison.
 ---
 
-## Overview
+## What This Is
 
-You have access to a live browser preview of the user's frontend project. The VibeView preview server runs at `http://localhost:51820` and renders the project inside device frames (iPhone/Pixel/iPad/Full). You can see the preview, inspect elements, read console errors, take screenshots, and compare visual changes — just like Android Studio's layout preview.
+VibeView gives you a live browser preview of the user's frontend project. The user edits code, you (or the file watcher) trigger a reload, and the browser shows the updated UI inside an iPhone/Pixel/iPad device frame.
 
-## When to Use These Tools
+**The preview server runs on demand — the user asks for it, you start it.**
 
-**ALWAYS use VibeView tools when:**
-- Writing or editing any HTML, CSS, JSX, TSX, Vue, or Svelte component
-- The user asks you to build UI, style something, or fix layout
-- Verifying that your code changes produced the expected visual result
-- Debugging why something doesn't look right
-- The user mentions "preview", "see what it looks like", "check the UI"
+## How to Start
 
-**The workflow for every UI change:**
-1. Make the code change
-2. Run `preview_reload` to refresh the preview
-3. Run `preview_screenshot` to see the result
-4. If something looks wrong, use `preview_inspect` to query elements
-5. If errors exist, use `preview_console` to read them
-6. Fix and repeat
+When the user says "preview this" or "show me what it looks like" or "start vibeview":
 
-## Tools
-
-### preview_screenshot
-Capture the current preview as an image. Shows the project inside the device frame with toolbar, status, and any error messages.
-
-Use this BEFORE and AFTER every UI change to verify the result.
-
-### preview_inspect
-Query an element's position, size, styles, and text content. Requires a CSS selector.
-
-```
-preview_inspect("button")        // first button
-preview_inspect(".card")         // element with class 'card'
-preview_inspect("#app h1")       // h1 inside #app
+```bash
+# Start the preview server in the background
+cd <project-dir> && vibeview &
 ```
 
-Returns: `{found, tag, text, rect: {x, y, w, h}, display, color, backgroundColor, fontSize, fontWeight, className, id}`
+This starts an HTTP/WebSocket server on port 51820. Then tell the user to open http://localhost:51820 in their browser.
 
-Use this when you need to check if an element is positioned correctly, has the right size, or to debug overflow/alignment issues.
+Once the preview server is running, these MCP tools become available:
 
-### preview_console
-Read recent browser console errors and warnings. Use after making changes to check for runtime errors.
+| Tool | What it does |
+|------|-------------|
+| `preview_screenshot` | Capture current preview as base64 PNG |
+| `preview_inspect` | Query element position, size, styles by CSS selector |
+| `preview_console` | Read browser console errors/warnings |
+| `preview_diff` | Compare current vs previous screenshot |
+| `preview_reload` | Force refresh the preview iframe |
 
-### preview_diff
-Compare the current preview screenshot with the previous one. Returns whether visual changes were detected, with both before/after images.
+## When to Use
 
-```
-flow: screenshot → make change → screenshot → diff
-```
+- User asks to "preview the project", "see the UI", "show me what it looks like"
+- User wants to check if a layout change worked
+- User wants to debug a rendering issue
+- User asks "what does this look like?"
 
-Use this to verify that ONLY the intended elements changed.
+## When NOT to Use
 
-### preview_reload
-Trigger a forced refresh of the preview iframe. Call after saving code changes.
+- User is doing backend work with no UI changes
+- User hasn't asked for a preview
+- No frontend project is open (no index.html, no vite project)
 
-## Responsible Tool Use
-
-- **Batch your checks**: Make all your code changes, then take one screenshot. Don't screenshot after every single line.
-- **Inspect, don't guess**: If a screenshot shows a layout issue, use `preview_inspect` to find the exact element and its dimensions before guessing at a fix.
-- **Diff to verify**: After fixing a bug, use `preview_diff` to confirm your fix didn't break anything else.
-- **Read errors first**: If something looks wrong, check `preview_console` before inspecting. The error message often tells you exactly what's broken.
-- **Timeout handling**: If a tool returns a timeout, the user may not have the preview open in a browser. Ask them to open http://localhost:51820.
-
-## Self-Correction Loop
+## Workflow
 
 ```
-1. Generate/edit UI code
-2. preview_reload      → refresh the preview
-3. preview_screenshot   → see the result
-4. [Looks wrong?]
-   a. preview_console  → check for errors
-   b. preview_inspect  → query the problem element
-   c. Fix the code
-   d. preview_reload   → refresh again
-   e. preview_screenshot → verify fix
-5. preview_diff        → confirm no unintended changes
-6. Present result to user
+User: "preview this"
+  → Start vibeview in background
+  → Tell user to open http://localhost:51820
+  → preview_screenshot to show current state
+
+User: "the button looks wrong"
+  → preview_inspect("button") to check size/position
+  → Fix the CSS
+  → preview_reload
+  → preview_screenshot to verify
+  → preview_diff to confirm only the button changed
 ```
 
-## Project Setup
+## Tips
 
-VibeView is already configured in this project's MCP settings. The preview server auto-starts on session launch.
-
-If the preview isn't working:
-```
-vibeview             # start preview server in project directory
-```
-
-Open http://localhost:51820 in a browser to see the live preview.
+- Start the preview server only when asked. Don't auto-start.
+- The preview server watches files and auto-reloads. No need to call `preview_reload` for every change.
+- For Vite projects, Vite's own HMR handles reloads; VibeView just provides the preview window.
+- If preview tools return timeouts, make sure the user has opened http://localhost:51820 and the status shows "live".
