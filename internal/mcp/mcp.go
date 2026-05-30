@@ -171,6 +171,17 @@ func (s *Server) handleToolsList(req Request) Response {
 			InputSchema: InputSchema{Type: "object", Properties: map[string]Property{}},
 		},
 		{
+			Name:        "preview_history",
+			Description: "Query card history from the Claude whiteboard. Returns paginated cards with #seq, time, title and content. Use offset and limit to browse older cards (e.g. offset=0 limit=10 for the latest 10, offset=10 limit=10 for the next batch).",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"offset": {Type: "integer", Description: "Number of cards to skip (default: 0)"},
+					"limit":  {Type: "integer", Description: "Max cards to return (default: 30)"},
+				},
+			},
+		},
+		{
 			Name:        "preview_stop",
 			Description: "Stop the VibeView preview server. Use this when the user is done previewing to free up resources.",
 			InputSchema: InputSchema{Type: "object", Properties: map[string]Property{}},
@@ -294,6 +305,26 @@ func (s *Server) handleToolsCall(req Request) Response {
 		} else {
 			resp.Body.Close()
 			result = map[string]string{"status": "cleared"}
+		}
+
+	case "preview_history":
+		offset := 0
+		limit := 30
+		if o, ok := params.Arguments["offset"]; ok {
+			if f, ok2 := o.(float64); ok2 { offset = int(f) }
+		}
+		if l, ok := params.Arguments["limit"]; ok {
+			if f, ok2 := l.(float64); ok2 { limit = int(f) }
+		}
+		resp, httpErr := s.client.Get(fmt.Sprintf("%s/api/cards?offset=%d&limit=%d", s.serverURL, offset, limit))
+		if httpErr != nil {
+			err = &RPCError{Code: -32000, Message: httpErr.Error()}
+		} else {
+			defer resp.Body.Close()
+			raw, _ := io.ReadAll(resp.Body)
+			var data map[string]interface{}
+			json.Unmarshal(raw, &data)
+			result = data
 		}
 
 	case "preview_stop":
