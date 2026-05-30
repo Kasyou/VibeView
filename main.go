@@ -136,35 +136,30 @@ func runPreviewMode(defaultMode string) {
 		os.Exit(0)
 	}()
 
-	fmt.Printf("  %s  %s\n", term.DimText("Preview:"), term.GreenText(fmt.Sprintf("http://localhost:%d", *port)))
-	fmt.Printf("  %s %v\n", term.DimText("Watching:"), info.WatchDirs)
-	if *ontop {
-		fmt.Println()
-		fmt.Println("  " + term.BoldText("To pin window always-on-top:"))
-		fmt.Println("    " + term.DimText("PowerToys:") + " Win+Ctrl+T on the browser window")
-		fmt.Println("    " + term.DimText("PowerShell:"))
-		fmt.Printf("    Add-Type -Name Win -Namespace API -MemberDefinition '[DllImport(\"user32.dll\")]public static extern bool SetWindowPos(IntPtr h,int a,int x,int y,int w,int h,uint f);'\n")
-		fmt.Printf("    $hwnd = (Get-Process -Name '*%d*' | Where MainWindowTitle -like '*VibeView*' | Select -First 1).MainWindowHandle\n", *port)
-		fmt.Println("    [API.Win]::SetWindowPos($hwnd, -1, 0, 0, 0, 0, 3)")
-	}
-	fmt.Println()
-
-	// Auto-retry next port if busy
+	// Auto-retry next port if busy, print URL only after success
 	for attempt := 0; attempt < 10; attempt++ {
 		err := srv.Start()
 		if err == nil {
+			fmt.Printf("  %s  %s\n", term.DimText("Preview:"), term.GreenText(fmt.Sprintf("http://localhost:%d", *port)))
+			fmt.Printf("  %s %v\n", term.DimText("Watching:"), info.WatchDirs)
+			if *ontop {
+				fmt.Println()
+				fmt.Println("  " + term.BoldText("To pin window always-on-top:"))
+				fmt.Println("    " + term.DimText("PowerToys:") + " Win+Ctrl+T on the browser window")
+			}
+			fmt.Println()
 			break
 		}
 		if attempt < 9 && (strings.Contains(err.Error(), "bind") ||
 			strings.Contains(err.Error(), "address already in use") ||
 			strings.Contains(err.Error(), "in use")) {
+			fmt.Printf("  %s port %d busy, trying %d...\n", term.DimText("→"), *port, *port+1)
 			*port++
 			devURL = fmt.Sprintf("http://localhost:%d/_app/index.html", *port)
 			srv = server.New(server.Config{
 				Port: *port, DevServerURL: devURL, ProjectDir: projectDir,
 				Mode: *mode, RendererHTML: rendererHTMLBytes(*mode), RendererFS: rendererAssets(),
 			})
-			fmt.Printf("  %s port busy, trying %d...\n", term.DimText("→"), *port)
 			continue
 		}
 		if strings.Contains(err.Error(), "bind") ||

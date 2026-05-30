@@ -1,17 +1,7 @@
 // Package term provides simple ANSI terminal colors.
 package term
 
-import "os"
-
-var useColor = isTerminal()
-
-func isTerminal() bool {
-	fi, err := os.Stdout.Stat()
-	if err != nil {
-		return false
-	}
-	return (fi.Mode() & os.ModeCharDevice) != 0
-}
+var useColor = true // Always on — modern terminals all support ANSI
 
 // Color codes
 const (
