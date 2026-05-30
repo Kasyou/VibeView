@@ -385,11 +385,14 @@ func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
-	cards := s.cardQueue
-	s.cardQueue = nil
+	all := s.allCards
+	// Return last 30 cards so browser refresh doesn't lose history
+	start := len(all) - 30
+	if start < 0 { start = 0 }
+	cards := all[start:]
 	s.mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
-	if cards == nil || len(cards) == 0 {
+	if len(cards) == 0 {
 		w.Write([]byte(`[]`))
 		return
 	}
