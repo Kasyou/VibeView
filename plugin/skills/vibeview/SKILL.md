@@ -1,62 +1,70 @@
 ---
 name: vibeview
-description: Visual output whiteboard for any Claude Code session. Start the server, push analysis as formatted cards, use Mermaid diagrams. Also has a Design Preview mode for frontend projects. This skill explains ALL capabilities so Claude never misidentifies VibeView as only a project previewer.
+description: Visual output whiteboard for any Claude Code session. Start the server, push analysis as formatted cards, use Mermaid diagrams. Also has a Design Preview mode for frontend projects.
 allowed-tools: [Bash(vibeview *), Bash(curl *)]
 ---
 
 ## What VibeView Is
 
-VibeView is a **browser whiteboard** that Claude Code uses to show visual output. It has TWO independent modes:
+A **browser whiteboard** that Claude pushes visual output to. Two modes:
 
-1. **Whiteboard Mode** (`vibeview`): Claude pushes markdown, diagrams, tables, and code as styled cards to a browser window. This is the PRIMARY mode. Use `preview_show` to push content.
+1. **Whiteboard** (`vibeview`): Push markdown/diagrams as cards via `preview_show`. The primary mode.
+2. **Design Preview** (`vibeview design`): Live UI preview with device frames.
 
-2. **Design Preview Mode** (`vibeview design`): File watcher + browser preview for frontend projects. Auto-detect React/Vue/Svelte/HTML.
+## How to Start
 
-Both modes run on separate ports. Both can run simultaneously.
-
-## Whiteboard Mode — The Primary Use Case
-
-**IMPORTANT: Never use taskkill. Never specify --port. Just run:**
+**NEVER use taskkill. NEVER specify --port. Just run:**
 
 ```bash
 vibeview &
 ```
 
-The binary auto-detects if port 51820 is busy and picks the next available port. Check `curl -s localhost:51820/health` first — if a server is already running, use it directly instead of starting a new one.
+The binary handles everything: auto-picks an available port (51820, 51821, ...), starts the server, prints the URL. You do NOT need to check ports yourself.
 
-Then use MCP tools:
+## User Says "Restart"
 
-| Tool | What it does |
-|------|-------------|
-| `preview_show` | Push a card to the whiteboard. Takes `title` and `content` (markdown). Supports Mermaid diagrams. |
-| `preview_clear` | Clear all cards (new topic) |
-| `preview_history` | Browse old cards by offset/limit |
-| `preview_screenshot` | Capture the whiteboard as PNG |
-| `preview_stop` | Shut down the server |
-
-**Every time you write a response, call `preview_show` to push key conclusions to the whiteboard.**
-
-## Mermaid Diagrams (chat can't render these)
-
-````
-preview_show({title:"Architecture", content:"```mermaid\ngraph TD\n  A→B\n```"})
-````
-
-Supports: `mindmap`, `graph`, `flowchart`, `sequenceDiagram`, `gantt`, `pie`, `classDiagram`.
-
-## Design Preview Mode
+"Restart" means start a NEW instance on the next port. DO NOT kill the existing one:
 
 ```bash
-vibeview design    # Start preview on port 51821
+vibeview &
 ```
 
-Used when the user is writing frontend code and wants a live preview with device frames.
+The binary finds 51820 busy → auto-uses 51821 → prints the new URL. Multiple instances coexist.
 
-## Lifecycle
+## User Says "Start/Open VibeView"
 
-1. User asks to preview → check `curl -s localhost:51820/health`, if not running → `vibeview &`
-2. Push full content via `preview_show`, reply in chat with one line
-3. Session ending → call `preview_stop` to free the port
-4. If user closes Claude Code without stopping: server auto-exits after 10 minutes idle
+Same thing. Just:
 
-Tell the user to open the browser URL (e.g. `http://localhost:51820`). If port is busy, VibeView auto-picks the next available port.
+```bash
+vibeview &
+```
+
+No port check needed. No taskkill. No `--port`. One command.
+
+## How to Stop
+
+```bash
+preview_stop
+```
+
+This shuts down ONLY the server on the current port. Other instances are untouched.
+
+## MCP Tools
+
+| Tool | Purpose |
+|------|---------|
+| `preview_show` | Push markdown card (title + content). Supports Mermaid. |
+| `preview_clear` | Clear all cards |
+| `preview_stop` | Shut down server |
+| `preview_history` | Browse old cards |
+| `preview_screenshot` | Capture as PNG |
+
+**Push every response to the whiteboard with `preview_show`. Chat reply is one sentence.**
+
+## Mermaid Diagrams
+
+```js
+preview_show({title:"Arch", content:"```mermaid\ngraph TD\n  A→B\n```"})
+```
+
+Supports: `mindmap`, `graph`, `flowchart`, `sequenceDiagram`, `gantt`, `pie`.
