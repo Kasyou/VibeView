@@ -1,40 +1,59 @@
 ---
 name: vibeview
-description: Whiteboard for visual output. Start when user asks, push every response, stop when done.
+description: Visual output whiteboard for any Claude Code session. Start the server, push analysis as formatted cards, use Mermaid diagrams. Also has a Design Preview mode for frontend projects. This skill explains ALL capabilities so Claude never misidentifies VibeView as only a project previewer.
 allowed-tools: [Bash(vibeview *), Bash(taskkill /F /IM vibeview.exe)]
 ---
 
-## Rules
+## What VibeView Is
 
-1. User says preview → `vibeview &`. Done → `preview_stop`.
-2. **Push before replying.** Whiteboard has the full answer; chat is one sentence.
-3. Start new topic → `preview_clear` first.
+VibeView is a **browser whiteboard** that Claude Code uses to show visual output. It has TWO independent modes:
 
-## Diagrams
+1. **Whiteboard Mode** (`vibeview`): Claude pushes markdown, diagrams, tables, and code as styled cards to a browser window. This is the PRIMARY mode. Use `preview_show` to push content.
 
-Use Mermaid in code blocks. VV renders them as SVG diagrams — impossible in plain chat.
+2. **Design Preview Mode** (`vibeview design`): File watcher + browser preview for frontend projects. Auto-detect React/Vue/Svelte/HTML.
+
+Both modes run on separate ports. Both can run simultaneously.
+
+## Whiteboard Mode — The Primary Use Case
+
+Start the server, then push content as formatted cards.
+
+```bash
+vibeview           # Start whiteboard on port 51820 (auto-retries if busy)
+```
+
+Then use MCP tools:
+
+| Tool | What it does |
+|------|-------------|
+| `preview_show` | Push a card to the whiteboard. Takes `title` and `content` (markdown). Supports Mermaid diagrams. |
+| `preview_clear` | Clear all cards (new topic) |
+| `preview_history` | Browse old cards by offset/limit |
+| `preview_screenshot` | Capture the whiteboard as PNG |
+| `preview_stop` | Shut down the server |
+
+**Every time you write a response, call `preview_show` to push key conclusions to the whiteboard.**
+
+## Mermaid Diagrams (chat can't render these)
 
 ````
-```mermaid
-graph TD
-  A[Problem] → B[Options]
-  B → C[Redis]
-  B → D[Kafka]
-  C → E[Low latency]
-  D → F[High throughput]
-```
+preview_show({title:"Architecture", content:"```mermaid\ngraph TD\n  A→B\n```"})
 ````
 
-Also: `mindmap`, `flowchart`, `sequenceDiagram`, `gantt`, `pie`, `classDiagram`.
+Supports: `mindmap`, `graph`, `flowchart`, `sequenceDiagram`, `gantt`, `pie`, `classDiagram`.
 
-## Example
+## Design Preview Mode
 
-```
-User: "Should we use Redis?"
-preview_show({title:"Cache Decision", content:"## Redis\n- 5M QPS\n\n**Use Redis**"})
-Chat: "→ Whiteboard"
+```bash
+vibeview design    # Start preview on port 51821
 ```
 
-## Modes
+Used when the user is writing frontend code and wants a live preview with device frames.
 
-`vibeview` (whiteboard :51820) | `vibeview design` (preview :51821)
+## Lifecycle
+
+1. User asks to preview or show something → `vibeview &` in current project directory
+2. Always reply with one-line chat summary, push full content via `preview_show`
+3. User says "done" or moves to a new topic → `preview_stop`
+
+Tell the user to open the browser URL (e.g. `http://localhost:51820`). If port is busy, VibeView auto-picks the next available port.
