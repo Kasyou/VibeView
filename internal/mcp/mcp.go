@@ -8,6 +8,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -87,6 +90,7 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) handle(req Request) Response {
+	s.resolvePort() // Re-read .vibeview-port before every request
 	switch req.Method {
 	case "initialize":
 		return s.handleInitialize(req)
@@ -99,6 +103,16 @@ func (s *Server) handle(req Request) Response {
 			JSONRPC: JSONRPCVersion,
 			ID:      req.ID,
 			Error:   &RPCError{Code: -32601, Message: "method not found"},
+		}
+	}
+}
+
+func (s *Server) resolvePort() {
+	if cwd, err := os.Getwd(); err == nil {
+		if data, err := os.ReadFile(filepath.Join(cwd, ".vibeview-port")); err == nil {
+			if port, err := strconv.Atoi(strings.TrimSpace(string(data))); err == nil && port > 0 {
+				s.serverURL = fmt.Sprintf("http://localhost:%d", port)
+			}
 		}
 	}
 }
