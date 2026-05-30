@@ -1,63 +1,52 @@
 ---
 name: vibeview
-description: Two independent browser windows — Claude Whiteboard (visualize AI reasoning) and Design Preview (instant UI feedback). Use when the user asks to preview UI, show ideas visually, or see live-reload of their frontend project.
+description: When VibeView Claude whiteboard is active at localhost:51820, you MUST push every significant response to the whiteboard using preview_show. The whiteboard IS what the user sees — this chat is secondary. Use Design mode for project UI preview.
 ---
 
-## Overview
+## CRITICAL: The Whiteboard Is Your Output
 
-VibeView has two completely independent modes. Start them on different ports — both can run at the same time.
+When VibeView Claude mode is running on port 51820, the browser whiteboard is **the user's primary view**. They are NOT reading this chat carefully — they are watching the whiteboard.
 
-### Claude Whiteboard (Visual Thinking)
-
-A browser window that renders your markdown as styled cards. Use it to **visualize your reasoning** — show architecture decisions, comparison tables, code snippets, process flows. The user sees your thinking in real time.
-
-```bash
-cd <project-dir> && vibeview --port 51820 &
-# Open http://localhost:51820
-```
-
-**Always-on-top:** run with `--ontop` for PowerShell commands to pin the window.
-
-### Design Preview (Instant UI Feedback)
-
-A browser window with device frames that shows the user's project in real time. File changes trigger instant reload. Pure tool, no MCP clutter.
-
-```bash
-cd <project-dir> && vibeview --mode design --port 51821 &
-# Open http://localhost:51821
-```
-
-## MCP Tools (Claude Whiteboard Mode)
-
-| Tool | Description |
-|------|-------------|
-| `preview_show` | Push markdown content to the whiteboard — renders as a styled card |
-| `preview_clear` | Clear all cards from the whiteboard |
-| `preview_screenshot` | Capture whiteboard as base64 PNG |
-| `preview_console` | Read browser console errors/warnings |
-| `preview_stop` | Stop the server when done |
-
-### Using preview_show
-
-Call `preview_show` to push visual content. Supports full markdown:
+**Your job**: Push every key conclusion, analysis, or result to the whiteboard with `preview_show`. This is not optional.
 
 ```
+User sees:  Whiteboard (browser) ←←← YOUR REAL OUTPUT
+            This chat           ←←← secondary, reference only
+```
+
+## Push Rules
+
+1. **Every major conclusion** → one card with `preview_show`
+2. **Comparisons** → table in markdown
+3. **Steps / processes** → numbered list
+4. **Architecture** → heading hierarchy + bullet points
+5. **Code explanations** → code block + bullet list of key points
+6. **Summaries** → bold key terms + concise bullet
+
+## Example
+
+```
+User asks: "Should we use Redis or Kafka?"
+
+Your response here: "Kafka because of throughput and persistence needs."
+
 preview_show({
-  title: "Architecture Decision",
-  content: "## We should use X\n\n- Reason 1\n- Reason 2\n\n| Option | Cost | Speed |"
+  title: "消息队列选型结论",
+  content: "## 推荐: Kafka\n\n| 维度 | Redis | Kafka |\n|------|-------|-------|\n| 吞吐量 | 中 | **高** |\n| 持久化 | 弱 | **强** |\n\n### 决策因素\n- 需要高吞吐量的事件流\n- 消息不能丢失\n- 已有 Kafka 运维经验"
 })
 ```
 
-Use it to:
-- Visualize architecture decisions
-- Show comparison tables
-- Display code snippets with explanations
-- Present conclusions and next steps
-- Draw process flows as bullet lists
+## MCP Tools
 
-## When to Use
+| Tool | When |
+|------|------|
+| `preview_show` | Push EVERY response to whiteboard |
+| `preview_clear` | Starting a new topic |
+| `preview_screenshot` | Verify whiteboard appearance |
 
-**Claude Whiteboard** — when you want to SHOW the user your reasoning, not just tell them
-**Design Preview** — when the user is coding and wants instant visual feedback
+## Design Mode
 
-Start only when asked. Don't auto-start.
+For project UI preview:
+```bash
+vibeview --mode design --port 51821
+```

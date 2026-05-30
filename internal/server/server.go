@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -370,21 +371,24 @@ func (s *Server) handleShow(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", 405)
 		return
 	}
-	content := r.FormValue("content")
-	title := r.FormValue("title")
-	if content == "" {
-		body, _ := io.ReadAll(r.Body)
-		var data map[string]interface{}
-		json.Unmarshal(body, &data)
-		if c, ok := data["content"]; ok {
-			content = str(c)
-		}
-		if t, ok := data["title"]; ok {
-			title = str(t)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+	body, _ := io.ReadAll(r.Body)
+	var data map[string]interface{}
+	if err := json.Unmarshal(body, &data); err != nil {
+		// Try parsing as raw text
+		content := strings.TrimSpace(string(body))
+		if content != "" {
+			s.Broadcast("show-content", map[string]string{"title": "", "content": content})
+			w.Write([]byte(`{"ok":true}`))
+			return
 		}
 	}
+
+	content := str(data["content"])
+	title := str(data["title"])
+
 	if content == "" {
-		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"ok":false,"error":"content required"}`))
 		return
 	}
@@ -392,7 +396,6 @@ func (s *Server) handleShow(w http.ResponseWriter, r *http.Request) {
 		"title":   title,
 		"content": content,
 	})
-	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"ok":true}`))
 }
 

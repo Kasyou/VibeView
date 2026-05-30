@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# VibeView Stop hook — reminds Claude to push content to the whiteboard.
+# Fires after every Claude response.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+PORT="${VIBEVIEW_PORT:-51820}"
+
+# Check if VibeView Claude whiteboard is running
+if ! curl -s --connect-timeout 1 "http://localhost:${PORT}/health" > /dev/null 2>&1; then
+    exit 0
+fi
+
+# Check if this is Claude mode (has whiteboard, not design preview)
+config=$(curl -s --connect-timeout 1 "http://localhost:${PORT}/api/config" 2>/dev/null || echo '{}')
+mode=$(echo "$config" | grep -o '"mode":"[^"]*"' | cut -d'"' -f4 || echo 'claude')
+
+if [ "$mode" != "claude" ]; then
+    exit 0
+fi
+
+# Inject reminder for next turn — Claude MUST push content to whiteboard
+reminder="<CRITICAL>VibeView Claude whiteboard is ACTIVE at http://localhost:${PORT}
+
+You MUST push EVERY significant conclusion, analysis, or result to the whiteboard using preview_show tool.
+
+For each response:
+1. Identify key conclusions (architecture decisions, comparisons, summaries)
+2. Call preview_show with a descriptive title and markdown content
+3. Use tables for comparisons, lists for steps, headings for structure
+
+The user sees the whiteboard — NOT this chat. If you only write here and don't push, the user sees nothing visual. PUSH EVERYTHING.</CRITICAL>"
+
+escaped=""
+if command -v python3 &> /dev/null; then
+    escaped=$(python3 -c "import json; print(json.dumps('$reminder'))" 2>/dev/null || echo "")
+elif command -v python &> /dev/null; then
+    escaped=$(python -c "import json; print(json.dumps('$reminder'))" 2>/dev/null || echo "")
+fi
+
+if [ -n "$escaped" ]; then
+    printf '{"hookSpecificOutput": {"hookEventName": "Stop", "additionalContext": %s}}\n' "$escaped"
+fi
+
+exit 0
