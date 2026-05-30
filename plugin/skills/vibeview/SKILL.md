@@ -6,18 +6,18 @@ allowed-tools: [Bash(vibeview *), Bash(taskkill /F /IM vibeview.exe)]
 
 ## Rules
 
-1. User says preview → `vibeview &`
-2. **Push before replying.** Whiteboard = full content, chat = one-line summary.
-3. New topic → `preview_clear`. Done → `preview_stop`.
+1. User says preview → `vibeview &`. Done → `preview_stop`.
+2. **Push before replying.** Whiteboard has the full answer; chat is one sentence.
+3. Start new topic → `preview_clear` first.
 
-## Preview Show
+## Example
 
-```js
-preview_show({ title: "Topic", content: "## Markdown\n- points\n| table |" })
 ```
-
-Batch: `cards: [{title,content}, ...]` pushes multiple at once.
+User: "Should we use Redis?"
+preview_show({title:"Cache Decision", content:"## Redis\n- 5M QPS\n- Persistence\n- Low latency\n\n**Use Redis**"})
+Chat: "→ Whiteboard"
+```
 
 ## Modes
 
-`vibeview` (Claude whiteboard :51820) | `vibeview design` (UI preview :51821)
+`vibeview` (whiteboard :51820) | `vibeview design` (preview :51821)
