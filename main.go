@@ -149,13 +149,28 @@ func runPreviewMode(defaultMode string) {
 	}
 	fmt.Println()
 
-	if err := srv.Start(); err != nil {
-		// Friendly error for port already in use
+	// Auto-retry next port if busy
+	for attempt := 0; attempt < 10; attempt++ {
+		err := srv.Start()
+		if err == nil {
+			break
+		}
+		if attempt < 9 && (strings.Contains(err.Error(), "bind") ||
+			strings.Contains(err.Error(), "address already in use") ||
+			strings.Contains(err.Error(), "in use")) {
+			*port++
+			devURL = fmt.Sprintf("http://localhost:%d/_app/index.html", *port)
+			srv = server.New(server.Config{
+				Port: *port, DevServerURL: devURL, ProjectDir: projectDir,
+				Mode: *mode, RendererHTML: rendererHTMLBytes(*mode), RendererFS: rendererAssets(),
+			})
+			fmt.Printf("  %s port busy, trying %d...\n", term.DimText("→"), *port)
+			continue
+		}
 		if strings.Contains(err.Error(), "bind") ||
 			strings.Contains(err.Error(), "address already in use") ||
 			strings.Contains(err.Error(), "in use") {
-			fmt.Fprintf(os.Stderr, "  %s port %d is already in use.\n", term.RedText("Error:"), *port)
-			fmt.Fprintf(os.Stderr, "  %s\n", term.DimText("Try: vibeview --port " + fmt.Sprintf("%d", *port+1)))
+			fmt.Fprintf(os.Stderr, "  %s all ports %d-%d are in use.\n", term.RedText("Error:"), *port-9, *port)
 		} else {
 			fmt.Fprintf(os.Stderr, "  %s %v\n", term.RedText("Error:"), err)
 		}
