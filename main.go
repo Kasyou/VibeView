@@ -23,6 +23,9 @@ func main() {
 		case "mcp":
 			runMCP()
 			return
+		case "design":
+			runPreviewMode("design")
+			return
 		case "help", "-h", "--help":
 			printHelp()
 			return
@@ -35,9 +38,10 @@ func main() {
 	runPreview()
 }
 
-func runPreview() {
+func runPreview()          { runPreviewMode("claude") }
+func runPreviewMode(defaultMode string) {
 	port := flag.Int("port", 0, "HTTP server port (default: 51820 Claude, 51821 Design)")
-	mode := flag.String("mode", "claude", "Mode: claude (AI collaboration) or design (instant preview)")
+	mode := flag.String("mode", defaultMode, "Mode: claude (AI whiteboard) or design (instant preview)")
 	ontop := flag.Bool("ontop", false, "Print PowerShell command to pin preview window always-on-top")
 	dir := flag.String("dir", "", "Project directory (default: current directory)")
 	flag.CommandLine.Parse(os.Args[1:])
@@ -50,11 +54,9 @@ func runPreview() {
 		}
 	}
 
-	var label string
+	label := "Claude"
 	if *mode == "design" {
 		label = "Design"
-	} else {
-		label = "Claude"
 	}
 
 	// Resolve project directory
