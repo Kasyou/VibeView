@@ -57,6 +57,8 @@
     card.innerHTML = html;
     var board = document.getElementById('board');
     board.appendChild(card);
+    // Render Mermaid diagrams in code blocks
+    renderMermaid(card);
     // Limit to 30 cards, remove oldest
     var allCards = board.querySelectorAll('.card');
     if (allCards.length > 30) {
@@ -206,6 +208,26 @@
 
   function escapeHtml(s) {
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function renderMermaid(card) {
+    var codes = card.querySelectorAll('pre code');
+    codes.forEach(function(code) {
+      var text = code.textContent || '';
+      // Check if it's a mermaid block (```mermaid or mindmap)
+      if (text.match(/^(graph |flowchart |sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|mindmap|gitGraph)/) || code.className.indexOf('mermaid') >= 0) {
+        try {
+          var pre = code.parentElement;
+          var div = document.createElement('div');
+          div.className = 'mermaid';
+          div.textContent = text;
+          pre.parentElement.replaceChild(div, pre);
+          mermaid.run({ nodes: [div] });
+        } catch(e) {
+          // Leave as code block if rendering fails
+        }
+      }
+    });
   }
 
   connectWS();

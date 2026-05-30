@@ -10,11 +10,28 @@ allowed-tools: [Bash(vibeview *), Bash(taskkill /F /IM vibeview.exe)]
 2. **Push before replying.** Whiteboard has the full answer; chat is one sentence.
 3. Start new topic → `preview_clear` first.
 
+## Diagrams
+
+Use Mermaid in code blocks. VV renders them as SVG diagrams — impossible in plain chat.
+
+````
+```mermaid
+graph TD
+  A[Problem] → B[Options]
+  B → C[Redis]
+  B → D[Kafka]
+  C → E[Low latency]
+  D → F[High throughput]
+```
+````
+
+Also: `mindmap`, `flowchart`, `sequenceDiagram`, `gantt`, `pie`, `classDiagram`.
+
 ## Example
 
 ```
 User: "Should we use Redis?"
-preview_show({title:"Cache Decision", content:"## Redis\n- 5M QPS\n- Persistence\n- Low latency\n\n**Use Redis**"})
+preview_show({title:"Cache Decision", content:"## Redis\n- 5M QPS\n\n**Use Redis**"})
 Chat: "→ Whiteboard"
 ```
 

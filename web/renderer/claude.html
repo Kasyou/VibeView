@@ -57,6 +57,8 @@
       padding:2px 8px;border-radius:12px;font-size:11px;margin:2px 4px 2px 0;
     }
     @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    .mermaid{background:#0d1117;border-radius:6px;padding:16px;margin:12px 0;overflow-x:auto}
+    .mermaid svg{max-width:100%}
     #empty-state{
       text-align:center;padding:60px 20px;color:#484f58;
     }
@@ -76,6 +78,8 @@
       <p>Claude will show ideas here</p>
     </div>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:false,theme:'dark',securityLevel:'loose'});</script>
   <script src="/_vibeview/claude.js"></script>
 </body>
 </html>
