@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"vibeview/internal/detector"
@@ -138,6 +139,7 @@ func runPreviewMode(defaultMode string) {
 
 	// Auto-retry next port if busy, print URL only after success
 	for attempt := 0; attempt < 10; attempt++ {
+		os.WriteFile(filepath.Join(projectDir, ".vibeview-port"), []byte(fmt.Sprintf("%d", *port)), 0644)
 		err := srv.Start()
 		if err == nil {
 			fmt.Printf("  %s  %s\n", term.DimText("Preview:"), term.GreenText(fmt.Sprintf("http://localhost:%d", *port)))
@@ -180,6 +182,14 @@ func runMCP() {
 	serverURL := fmt.Sprintf("http://localhost:%d", *port)
 	if envURL := os.Getenv("VIBEVIEW_URL"); envURL != "" {
 		serverURL = envURL
+	}
+	// Read port from project's .vibeview-port file (created by preview server)
+	if cwd, err := os.Getwd(); err == nil {
+		if data, err := os.ReadFile(filepath.Join(cwd, ".vibeview-port")); err == nil {
+			if p, err := strconv.Atoi(strings.TrimSpace(string(data))); err == nil && p > 0 {
+				serverURL = fmt.Sprintf("http://localhost:%d", p)
+			}
+		}
 	}
 
 	mcpServer := mcp.New(serverURL)
