@@ -1,74 +1,70 @@
 # VibeView
 
-**Claude Code 的可视化输出白板。** Claude 的分析、决策、总结以卡片形式呈现在浏览器中——不再埋没在聊天框里。
+**Claude Code 的可视化输出白板。** Mermaid 图表、结构化卡片、代码高亮。CC 是文字 — VV 是可视化。
 
 <p align="center">
-  <img src="screenshots/whiteboard-demo-v0.3.1.png" alt="白板演示" width="720">
+  <img src="screenshots/vv-capability-demo.png" alt="VibeView 能力展示" width="720">
 </p>
 
 ## 双模式
 
 | 模式 | 命令 | 端口 | 用途 |
-|------|------|------|------|
-| Claude 白板 | `vibeview` | 51820 | AI 推理可视化 |
-| Design 预览 | `vibeview design` | 51821 | 项目 UI 实时预览 |
-
-### Claude 白板
-
-Claude 将分析结论、架构决策、代码审查以卡片形式推送到浏览器。用户看白板而非刷聊天框。
+|------|------|------|---------|
+| Claude 白板 | `vibeview` | 51820 | AI 推理 → 图表 + 卡片 |
+| Design 预览 | `vibeview design` | 51821 | 代码 → 即时 UI 预览 |
 
 ### Design 预览
 
 <p align="center">
-  <img src="screenshots/design-demo-v0.3.1.png" alt="Design 预览" width="480">
+  <img src="screenshots/design-demo-v0.3.1.png" alt="代码与预览并排" width="720">
 </p>
 
-Android Studio 式即时 UI 预览。文件监控 + WebSocket 热更新。自动识别 React/Vue/Svelte/HTML 项目。支持 iPhone/Pixel/iPad 设备框。
+Cursor 暗色主题。设备框。热更新。自动识别 React/Vue/Svelte/HTML。
+
+## VV vs CC
+
+| CC 聊天不能 | VV 白板能 |
+|------------|----------|
+| 思维导图 | `mindmap` — 层级可视化 |
+| 流程图 | `graph TD` — 决策树、架构图 |
+| 时序图 | `sequenceDiagram` — API 调用链 |
+| 甘特图 | `gantt` — 项目计划 |
+| 代码高亮 | GitHub-dark 多语言配色 |
+| 卡片注释 | #序号 · 时间戳 |
+| 历史搜索 | `preview_history` 分页查询 |
+
+### 智能浏览器
+
+VV 自动检测内容类型。含图表 → 提示用外置浏览器。纯文字/表格 → Cursor 内置浏览器。
 
 ## 快速开始
 
 ```bash
 go install github.com/Kasyou/VibeView@latest
-
-# Claude 白板
-vibeview
-# → 浏览器打开 http://localhost:51820
-
-# Design 预览
-vibeview design --dir ./my-project
-# → 浏览器打开 http://localhost:51821
+vibeview            # 白板 :51820
+vibeview design     # 预览 :51821
 ```
 
 ## 9 个 MCP 工具
 
 | 工具 | 用途 |
 |------|------|
-| `preview_show` | 推送 Markdown 卡片 |
+| `preview_show` | 推送 Markdown + 图表 |
 | `preview_clear` | 清空白板 |
-| `preview_history` | 分页历史查询 |
+| `preview_history` | 分页历史 |
 | `preview_screenshot` | 截取预览图 |
-| `preview_inspect` | CSS 选择器查元素 |
-| `preview_console` | 读浏览器错误 |
-| `preview_diff` | 前后截图对比 |
+| `preview_inspect` | 元素查询 |
+| `preview_console` | 浏览器错误 |
+| `preview_diff` | 前后对比 |
 | `preview_reload` | 强制刷新 |
 | `preview_stop` | 关闭服务器 |
-
-## 特性
-
-- `#序号 · 时间戳` 卡片注释
-- 离线消息队列（浏览器断开不丢卡）
-- 30 张 DOM 限制 + 服务器无限历史
-- 中文 UTF-8 完美渲染
-- 37 个测试 | Go 1.23+
 
 ## 编译
 
 ```bash
 git clone https://github.com/Kasyou/VibeView.git
-cd VibeView
-go build -o vibeview .
+cd VibeView && go build -o vibeview .
+# 二进制约 12MB（内嵌 Mermaid.js）
 ```
 
-## License
-
-MIT
+37 测试 · Go 1.23+ · Windows/macOS/Linux · MIT
