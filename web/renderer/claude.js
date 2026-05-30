@@ -18,7 +18,15 @@
       setStatus('reconnecting');
       setTimeout(connectWS, 2000);
     };
-    ws.onopen = function() { setStatus('live'); };
+    ws.onopen = function() {
+      setStatus('live');
+      // Fetch any cards that were pushed before we connected
+      fetch('/api/queue')
+        .then(function(r) { return r.json(); })
+        .then(function(cards) {
+          cards.forEach(function(c) { addCard(c.title || '', c.content || ''); });
+        });
+    };
   }
 
   function setStatus(text) {

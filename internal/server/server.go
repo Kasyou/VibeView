@@ -33,6 +33,11 @@ type ConsoleMsg struct {
 	Line    int    `json:"line"`
 }
 
+type cardMsg struct {
+	Title   string `json:"title"`
+	Content string `json:"content"`
+}
+
 type Server struct {
 	cfg        Config
 	mux        *http.ServeMux
@@ -45,6 +50,7 @@ type Server struct {
 	prevScreenshot string                 // previous screenshot for diff comparison
 	scrReqs        map[string]chan string  // pending screenshot requests
 	inspReqs       map[string]chan string  // pending inspect requests
+	cardQueue      []cardMsg               // queued cards delivered on browser connect
 	scrMu          sync.Mutex
 }
 
@@ -79,6 +85,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/shutdown", s.handleShutdown)
 	s.mux.HandleFunc("/api/show", s.handleShow)
 	s.mux.HandleFunc("/api/clear", s.handleClear)
+	s.mux.HandleFunc("/api/queue", s.handleQueue)
 	s.mux.HandleFunc("/", s.renderer)
 }
 
@@ -352,6 +359,20 @@ func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	cards := s.cardQueue
+	s.cardQueue = nil
+	s.mu.Unlock()
+	w.Header().Set("Content-Type", "application/json")
+	if cards == nil {
+		w.Write([]byte(`[]`))
+		return
+	}
+	data, _ := json.Marshal(cards)
+	w.Write(data)
+}
+
 func (s *Server) handleShutdown(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", 405)
@@ -392,10 +413,19 @@ func (s *Server) handleShow(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"ok":false,"error":"content required"}`))
 		return
 	}
-	s.Broadcast("show-content", map[string]string{
-		"title":   title,
-		"content": content,
-	})
+
+	card := cardMsg{Title: title, Content: content}
+
+	s.mu.Lock()
+	hasClients := len(s.clients) > 0
+	if !hasClients {
+		s.cardQueue = append(s.cardQueue, card)
+	}
+	s.mu.Unlock()
+
+	if hasClients {
+		s.Broadcast("show-content", card)
+	}
 	w.Write([]byte(`{"ok":true}`))
 }
 
@@ -405,6 +435,9 @@ func (s *Server) handleClear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.Broadcast("clear-board", nil)
+	s.mu.Lock()
+	s.cardQueue = nil
+	s.mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"ok":true}`))
 }
