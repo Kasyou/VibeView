@@ -3,23 +3,27 @@
 **Visual output for Claude Code.** Claude's analysis appears as styled cards in a browser whiteboard — not buried in chat.
 
 <p align="center">
-  <img src="screenshots/whiteboard-demo-v0.3.1.png" alt="Claude Whiteboard" width="720">
+  <img src="screenshots/vv-capability-demo.png" alt="VibeView Whiteboard — Mermaid diagrams, tables, code blocks" width="720">
 </p>
 
 ## Two Modes
 
 | Mode | Command | Port | Purpose |
 |------|---------|------|---------|
-| Claude Whiteboard | `vibeview` | 51820 | AI reasoning → visual cards |
+| Claude Whiteboard | `vibeview` | 51820 | AI reasoning → visual cards + diagrams |
 | Design Preview | `vibeview design` | 51821 | Real-time UI preview (device frames) |
 
 ### Claude Whiteboard
 
-Claude pushes analysis, decisions, and summaries as styled cards. Chat becomes secondary — the whiteboard is where users look.
+Mermaid-powered diagrams, styled cards, code highlighting. What CC can't render — VV can.
+
+### Design Preview
 
 <p align="center">
   <img src="screenshots/design-demo-v0.3.1.png" alt="Design Preview" width="480">
 </p>
+
+Android Studio-style instant UI preview. Device frames + hot reload.
 
 ### Design Preview
 
@@ -68,13 +72,19 @@ go build -o vibeview .
 bash scripts/build.sh
 ```
 
-## Highlights
+## Why VV vs Chat
 
-- Card annotations: `#seq · timestamp`
-- Card queue: survives browser disconnect
-- Card limit: 30 DOM / unlimited server history
-- Chinese UTF-8 support
-- 37 tests
+CC is text. VV is **diagrams + structured data**.
+
+| CC Can't | VV Can |
+|----------|--------|
+| Mind maps | `mindmap` — hierarchical visualization |
+| Flowcharts | `graph TD` — decision trees, architecture |
+| Sequence diagrams | `sequenceDiagram` — API flows, message passing |
+| Gantt charts | `gantt` — project timelines |
+| Code highlighting | GitHub-dark theme, multi-language |
+| Card annotations | #seq · timestamp on every card |
+| History | Paginated, searchable, never lost |
 
 ## License
 

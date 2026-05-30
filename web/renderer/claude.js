@@ -211,10 +211,13 @@
   }
 
   function renderMermaid(card) {
+    if (typeof mermaid === 'undefined') {
+      markMermaidFallback(card);
+      return;
+    }
     var codes = card.querySelectorAll('pre code');
     codes.forEach(function(code) {
       var text = code.textContent || '';
-      // Check if it's a mermaid block (```mermaid or mindmap)
       if (text.match(/^(graph |flowchart |sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|mindmap|gitGraph)/) || code.className.indexOf('mermaid') >= 0) {
         try {
           var pre = code.parentElement;
@@ -222,10 +225,22 @@
           div.className = 'mermaid';
           div.textContent = text;
           pre.parentElement.replaceChild(div, pre);
-          mermaid.run({ nodes: [div] });
+          mermaid.run({ nodes: [div] }).catch(function() {
+            div.innerHTML = '<div class="mermaid-fallback"><code>' + escapeHtml(text.substring(0, 200)) + '</code><p>Open in external browser for diagram</p></div>';
+          });
         } catch(e) {
-          // Leave as code block if rendering fails
+          markMermaidFallback(card);
         }
+      }
+    });
+  }
+
+  function markMermaidFallback(card) {
+    var codes = card.querySelectorAll('pre code');
+    codes.forEach(function(code) {
+      var text = code.textContent || '';
+      if (text.match(/^(graph |flowchart |sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|mindmap|gitGraph)/)) {
+        code.parentElement.insertAdjacentHTML('afterend', '<p style="color:#e94560;font-size:11px">Open in external browser for diagram</p>');
       }
     });
   }
