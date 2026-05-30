@@ -8,7 +8,7 @@
     ws.onmessage = function(e) {
       var msg = JSON.parse(e.data);
       if (msg.type === 'show-content' && msg.data) {
-        addCard(msg.data.title || '', msg.data.content || '');
+        addCard(msg.data.title || '', msg.data.content || '', msg.data.seq, msg.data.time);
       }
       if (msg.type === 'clear-board') {
         clearBoard();
@@ -24,7 +24,7 @@
       fetch('/api/queue')
         .then(function(r) { return r.json(); })
         .then(function(cards) {
-          cards.forEach(function(c) { addCard(c.title || '', c.content || ''); });
+          cards.forEach(function(c) { addCard(c.title || '', c.content || '', c.seq, c.time); });
         });
     };
   }
@@ -34,14 +34,24 @@
     if (el) el.textContent = text;
   }
 
-  function addCard(title, content) {
+  function addCard(title, content, seq, time) {
     if (emptyState) { emptyState.style.display = 'none'; }
     var card = document.createElement('div');
     card.className = 'card';
 
     var html = '';
+    // Header: #seq · time · title
+    var header = '';
+    if (seq || time) {
+      header = '<div class="card-meta">';
+      if (seq) header += '<span class="card-seq">#' + seq + '</span>';
+      if (time) header += '<span class="card-time">' + escapeHtml(time) + '</span>';
+      header += '</div>';
+    }
     if (title) {
-      html += '<div class="card-title">' + escapeHtml(title) + '</div>';
+      html += header + '<div class="card-title">' + escapeHtml(title) + '</div>';
+    } else {
+      html += header;
     }
     html += renderMarkdown(content);
     card.innerHTML = html;

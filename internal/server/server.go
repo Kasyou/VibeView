@@ -34,6 +34,8 @@ type ConsoleMsg struct {
 }
 
 type cardMsg struct {
+	Seq     int    `json:"seq"`
+	Time    string `json:"time"`
 	Title   string `json:"title"`
 	Content string `json:"content"`
 }
@@ -51,6 +53,8 @@ type Server struct {
 	scrReqs        map[string]chan string  // pending screenshot requests
 	inspReqs       map[string]chan string  // pending inspect requests
 	cardQueue      []cardMsg               // queued cards delivered on browser connect
+	allCards       []cardMsg               // complete history (all cards, unlimited)
+	cardSeq        int                     // auto-increment card sequence number
 	scrMu          sync.Mutex
 }
 
@@ -86,6 +90,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/show", s.handleShow)
 	s.mux.HandleFunc("/api/clear", s.handleClear)
 	s.mux.HandleFunc("/api/queue", s.handleQueue)
+	s.mux.HandleFunc("/api/cards", s.handleCards)
 	s.mux.HandleFunc("/", s.renderer)
 }
 
@@ -365,12 +370,39 @@ func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request) {
 	s.cardQueue = nil
 	s.mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
-	if cards == nil {
+	if cards == nil || len(cards) == 0 {
 		w.Write([]byte(`[]`))
 		return
 	}
 	data, _ := json.Marshal(cards)
 	w.Write(data)
+}
+
+func (s *Server) handleCards(w http.ResponseWriter, r *http.Request) {
+	offset := 0
+	limit := 30
+	if o := r.URL.Query().Get("offset"); o != "" {
+		fmt.Sscanf(o, "%d", &offset)
+	}
+	if l := r.URL.Query().Get("limit"); l != "" {
+		fmt.Sscanf(l, "%d", &limit)
+	}
+	s.mu.Lock()
+	all := s.allCards
+	s.mu.Unlock()
+	total := len(all)
+	start := offset
+	if start > total { start = total }
+	end := start + limit
+	if end > total { end = total }
+	slice := all[start:end]
+	if slice == nil { slice = []cardMsg{} }
+
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"total":%d,"offset":%d,"cards":`, total, offset)
+	data, _ := json.Marshal(slice)
+	w.Write(data)
+	w.Write([]byte(`}`))
 }
 
 func (s *Server) handleShutdown(w http.ResponseWriter, r *http.Request) {
@@ -414,9 +446,15 @@ func (s *Server) handleShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	card := cardMsg{Title: title, Content: content}
-
 	s.mu.Lock()
+	s.cardSeq++
+	card := cardMsg{
+		Seq:     s.cardSeq,
+		Time:    time.Now().Format("15:04:05"),
+		Title:   title,
+		Content: content,
+	}
+	s.allCards = append(s.allCards, card)
 	hasClients := len(s.clients) > 0
 	if !hasClients {
 		s.cardQueue = append(s.cardQueue, card)
@@ -437,6 +475,8 @@ func (s *Server) handleClear(w http.ResponseWriter, r *http.Request) {
 	s.Broadcast("clear-board", nil)
 	s.mu.Lock()
 	s.cardQueue = nil
+	s.allCards = nil
+	s.cardSeq = 0
 	s.mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"ok":true}`))
