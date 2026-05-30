@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -32,6 +33,8 @@ type ConsoleMsg struct {
 	File    string `json:"file"`
 	Line    int    `json:"line"`
 }
+
+var mermaidRe = regexp.MustCompile("(?i)(graph |flowchart |sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|mindmap|gitGraph)")
 
 type cardMsg struct {
 	Seq     int    `json:"seq"`
@@ -442,7 +445,7 @@ func (s *Server) handleShow(w http.ResponseWriter, r *http.Request) {
 		if cards, ok2 := cardsRaw.([]interface{}); ok2 {
 			for _, c := range cards {
 				if cm, ok3 := c.(map[string]interface{}); ok3 {
-					s.pushCard(str(cm["title"]), str(cm["content"]))
+					cContent := str(cm["content"]); s.pushCard(str(cm["title"]), cContent)
 				}
 			}
 			w.Write([]byte(`{"ok":true}`))
@@ -458,7 +461,8 @@ func (s *Server) handleShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.pushCard(title, content)
-	w.Write([]byte(`{"ok":true}`))
+	hasDiag := mermaidRe.MatchString(content)
+	fmt.Fprintf(w, `{"ok":true,"hasDiagrams":%v}`, hasDiag)
 }
 
 func (s *Server) pushCard(title, content string) {
