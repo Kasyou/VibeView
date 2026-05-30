@@ -16,17 +16,13 @@ Both modes run on separate ports. Both can run simultaneously.
 
 ## Whiteboard Mode — The Primary Use Case
 
-Before starting, check if already running on the target port:
+**IMPORTANT: Never use taskkill. Never specify --port. Just run:**
 
 ```bash
-curl -s http://localhost:51820/health  # Returns {"status":"ok"} if running
+vibeview &
 ```
 
-If already running, use it directly. If not, start:
-
-```bash
-vibeview           # Auto-picks next available port if busy
-```
+The binary auto-detects if port 51820 is busy and picks the next available port. Check `curl -s localhost:51820/health` first — if a server is already running, use it directly instead of starting a new one.
 
 Then use MCP tools:
 
