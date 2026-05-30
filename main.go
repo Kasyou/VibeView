@@ -38,6 +38,7 @@ func main() {
 func runPreview() {
 	port := flag.Int("port", 0, "HTTP server port (default: 51820 Claude, 51821 Design)")
 	mode := flag.String("mode", "claude", "Mode: claude (AI collaboration) or design (instant preview)")
+	ontop := flag.Bool("ontop", false, "Print PowerShell command to pin preview window always-on-top")
 	dir := flag.String("dir", "", "Project directory (default: current directory)")
 	flag.CommandLine.Parse(os.Args[1:])
 
@@ -100,7 +101,7 @@ func runPreview() {
 		DevServerURL: devURL,
 		ProjectDir:   projectDir,
 		Mode:         *mode,
-		RendererHTML: rendererHTMLBytes(),
+		RendererHTML: rendererHTMLBytes(*mode),
 		RendererFS:   rendererAssets(),
 	})
 
@@ -128,6 +129,15 @@ func runPreview() {
 
 	fmt.Printf("  %s  %s\n", term.DimText("Preview:"), term.GreenText(fmt.Sprintf("http://localhost:%d", *port)))
 	fmt.Printf("  %s %v\n", term.DimText("Watching:"), info.WatchDirs)
+	if *ontop {
+		fmt.Println()
+		fmt.Println("  " + term.BoldText("To pin window always-on-top:"))
+		fmt.Println("    " + term.DimText("PowerToys:") + " Win+Ctrl+T on the browser window")
+		fmt.Println("    " + term.DimText("PowerShell:"))
+		fmt.Printf("    Add-Type -Name Win -Namespace API -MemberDefinition '[DllImport(\"user32.dll\")]public static extern bool SetWindowPos(IntPtr h,int a,int x,int y,int w,int h,uint f);'\n")
+		fmt.Printf("    $hwnd = (Get-Process -Name '*%d*' | Where MainWindowTitle -like '*VibeView*' | Select -First 1).MainWindowHandle\n", *port)
+		fmt.Println("    [API.Win]::SetWindowPos($hwnd, -1, 0, 0, 0, 0, 3)")
+	}
 	fmt.Println()
 
 	if err := srv.Start(); err != nil {
@@ -161,21 +171,28 @@ func runMCP() {
 }
 
 func printHelp() {
-	fmt.Println(`VibeView v` + version + ` — instant UI preview for vibe coding.
+	fmt.Println(`VibeView v` + version + ` — instant UI preview & Claude visual whiteboard.
 
 Usage:
-  vibeview [--port N] [--dir PATH]     Start preview server
-  vibeview mcp [--port N]              Start MCP server (for Claude Code)
-  vibeview help                        Show this help
-  vibeview version                     Show version
+  vibeview [--mode claude|design] [--port N] [--dir PATH] [--ontop]
+  vibeview mcp [--port N]
+  vibeview help
+  vibeview version
+
+Modes:
+  claude (default)  Claude whiteboard — visualize AI reasoning as styled cards
+  design            Instant preview — see UI changes as you code
 
 Flags:
-  --port int    Server port (default: 51820)
-  --dir  path   Project directory (default: current dir)
+  --mode    Mode: claude (AI collaboration) or design (instant preview)
+  --port    Server port (default: 51820 claude, 51821 design)
+  --dir     Project directory (default: current dir)
+  --ontop   Print PowerShell command to pin window always-on-top
 
 Examples:
-  vibeview                        Start in current directory
-  vibeview --port 3000            Start on port 3000
-  vibeview --dir ~/my-project     Start for a specific project
-  vibeview mcp                    Start MCP server for Claude Code`)
+  vibeview                              Claude whiteboard on :51820
+  vibeview --mode design                Design preview on :51821
+  vibeview --mode design --ontop        Design preview + always-on-top help
+  vibeview --port 3000 --dir ./my-app   Custom port and project
+  vibeview mcp                          MCP server for Claude Code`)
 }

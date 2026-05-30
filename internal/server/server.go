@@ -76,6 +76,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/inspect", s.handleInspect)
 	s.mux.HandleFunc("/api/diff", s.handleDiff)
 	s.mux.HandleFunc("/api/shutdown", s.handleShutdown)
+	s.mux.HandleFunc("/api/show", s.handleShow)
+	s.mux.HandleFunc("/api/clear", s.handleClear)
 	s.mux.HandleFunc("/", s.renderer)
 }
 
@@ -361,6 +363,47 @@ func (s *Server) handleShutdown(w http.ResponseWriter, r *http.Request) {
 		s.Close()
 		os.Exit(0)
 	}()
+}
+
+func (s *Server) handleShow(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", 405)
+		return
+	}
+	content := r.FormValue("content")
+	title := r.FormValue("title")
+	if content == "" {
+		body, _ := io.ReadAll(r.Body)
+		var data map[string]interface{}
+		json.Unmarshal(body, &data)
+		if c, ok := data["content"]; ok {
+			content = str(c)
+		}
+		if t, ok := data["title"]; ok {
+			title = str(t)
+		}
+	}
+	if content == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"ok":false,"error":"content required"}`))
+		return
+	}
+	s.Broadcast("show-content", map[string]string{
+		"title":   title,
+		"content": content,
+	})
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"ok":true}`))
+}
+
+func (s *Server) handleClear(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", 405)
+		return
+	}
+	s.Broadcast("clear-board", nil)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"ok":true}`))
 }
 
 func (s *Server) Broadcast(msgType string, data interface{}) {

@@ -17,10 +17,14 @@ func rendererAssets() http.Handler {
 	return http.FileServer(http.FS(sub))
 }
 
-func rendererHTMLBytes() []byte {
-	data, err := rendererFS.ReadFile("web/renderer/index.html")
+func rendererHTMLBytes(mode string) []byte {
+	file := "web/renderer/index.html"
+	if mode == "claude" {
+		file = "web/renderer/claude.html"
+	}
+	data, err := rendererFS.ReadFile(file)
 	if err != nil {
-		panic("vibeview: embedded renderer index.html not found: " + err.Error())
+		panic("vibeview: embedded renderer not found: " + file + ": " + err.Error())
 	}
 	return data
 }

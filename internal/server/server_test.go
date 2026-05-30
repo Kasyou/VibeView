@@ -18,6 +18,7 @@ func testConfig() Config {
 		Port:         0,
 		DevServerURL: "http://localhost:5173",
 		ProjectDir:   ".",
+		Mode:         "claude",
 		RendererHTML: []byte("x"),
 		RendererFS:   stubHandler(),
 	}

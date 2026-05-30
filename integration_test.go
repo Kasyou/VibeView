@@ -42,7 +42,7 @@ func TestFullFlow_ServerEndpoints(t *testing.T) {
 		Port:         51821,
 		DevServerURL: "http://localhost:5173",
 		ProjectDir:   ".",
-		RendererHTML: rendererHTMLBytes(),
+		RendererHTML: rendererHTMLBytes("claude"),
 		RendererFS:   rendererAssets(),
 	})
 
@@ -62,17 +62,28 @@ func TestFullFlow_ServerEndpoints(t *testing.T) {
 	}
 }
 
-func TestFullFlow_RendererEmbedded(t *testing.T) {
-	html := rendererHTMLBytes()
+func TestFullFlow_DesignRendererEmbedded(t *testing.T) {
+	html := rendererHTMLBytes("design")
 	if len(html) == 0 {
-		t.Fatal("renderer HTML is empty")
+		t.Fatal("design renderer HTML is empty")
 	}
 	s := string(html)
 	if !strings.Contains(s, "VibeView") {
-		t.Error("renderer HTML should contain VibeView")
+		t.Error("design renderer should contain VibeView")
 	}
 	if !strings.Contains(s, "device-frame") {
-		t.Error("renderer HTML should contain device-frame")
+		t.Error("design renderer should contain device-frame")
+	}
+}
+
+func TestFullFlow_ClaudeRendererEmbedded(t *testing.T) {
+	html := rendererHTMLBytes("claude")
+	if len(html) == 0 {
+		t.Fatal("claude renderer HTML is empty")
+	}
+	s := string(html)
+	if !strings.Contains(s, "Claude Whiteboard") {
+		t.Error("claude renderer should contain Claude Whiteboard")
 	}
 }
 

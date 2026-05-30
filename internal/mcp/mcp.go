@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -153,6 +154,23 @@ func (s *Server) handleToolsList(req Request) Response {
 			InputSchema: InputSchema{Type: "object", Properties: map[string]Property{}},
 		},
 		{
+			Name:        "preview_show",
+			Description: "Push visual content to the Claude whiteboard. Send markdown text (headings, lists, code, tables) to be rendered as styled cards in the browser. Use this to visualize your reasoning, show conclusions, draw comparison tables, or present architecture overviews.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"content": {Type: "string", Description: "Markdown content to render on the whiteboard"},
+					"title":   {Type: "string", Description: "Optional card title shown above the content"},
+				},
+				Required: []string{"content"},
+			},
+		},
+		{
+			Name:        "preview_clear",
+			Description: "Clear all cards from the Claude whiteboard. Use when starting a new topic or at the user's request.",
+			InputSchema: InputSchema{Type: "object", Properties: map[string]Property{}},
+		},
+		{
 			Name:        "preview_stop",
 			Description: "Stop the VibeView preview server. Use this when the user is done previewing to free up resources.",
 			InputSchema: InputSchema{Type: "object", Properties: map[string]Property{}},
@@ -245,6 +263,37 @@ func (s *Server) handleToolsCall(req Request) Response {
 			var data map[string]interface{}
 			json.Unmarshal(raw, &data)
 			result = data
+		}
+
+	case "preview_show":
+		content := ""
+		title := ""
+		if c, ok := params.Arguments["content"]; ok {
+			content = fmt.Sprintf("%v", c)
+		}
+		if t, ok := params.Arguments["title"]; ok {
+			title = fmt.Sprintf("%v", t)
+		}
+		if content == "" {
+			err = &RPCError{Code: -32602, Message: "content required"}
+		} else {
+			body, _ := json.Marshal(map[string]string{"content": content, "title": title})
+			resp, httpErr := s.client.Post(s.serverURL+"/api/show", "application/json", bytes.NewReader(body))
+			if httpErr != nil {
+				err = &RPCError{Code: -32000, Message: httpErr.Error()}
+			} else {
+				resp.Body.Close()
+				result = map[string]string{"status": "shown"}
+			}
+		}
+
+	case "preview_clear":
+		resp, httpErr := s.client.Post(s.serverURL+"/api/clear", "application/json", nil)
+		if httpErr != nil {
+			err = &RPCError{Code: -32000, Message: httpErr.Error()}
+		} else {
+			resp.Body.Close()
+			result = map[string]string{"status": "cleared"}
 		}
 
 	case "preview_stop":
