@@ -11,14 +11,6 @@ A **browser whiteboard** that Claude pushes visual output to. Two modes:
 1. **Whiteboard** (`vibeview`): Push markdown/diagrams as cards via `preview_show`. The primary mode.
 2. **Design Preview** (`vibeview design`): Live UI preview with device frames.
 
-## Git Ignore
-
-VibeView creates a `.vibeview-port` file in the project directory. Add it to `.gitignore`:
-
-```
-echo ".vibeview-port" >> .gitignore
-```
-
 ## How to Start
 
 Just run ONE command. Do not check ports. Do not use --port. Do not curl health.

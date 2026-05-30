@@ -3,6 +3,7 @@ package mcp
 import (
 	"bufio"
 	"bytes"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -107,9 +108,16 @@ func (s *Server) handle(req Request) Response {
 	}
 }
 
+func portFilePath(projectDir string) string {
+	home, _ := os.UserHomeDir()
+	dir := filepath.Join(home, ".vibeview")
+	os.MkdirAll(dir, 0755)
+	return filepath.Join(dir, fmt.Sprintf("%x", md5.Sum([]byte(projectDir))))
+}
+
 func (s *Server) resolvePort() {
 	if cwd, err := os.Getwd(); err == nil {
-		if data, err := os.ReadFile(filepath.Join(cwd, ".vibeview-port")); err == nil {
+		if data, err := os.ReadFile(portFilePath(cwd)); err == nil {
 			if port, err := strconv.Atoi(strings.TrimSpace(string(data))); err == nil && port > 0 {
 				s.serverURL = fmt.Sprintf("http://localhost:%d", port)
 			}

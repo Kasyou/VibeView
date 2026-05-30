@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/md5"
 	"flag"
 	"fmt"
 	"os"
@@ -40,6 +41,13 @@ func main() {
 }
 
 func runPreview()          { runPreviewMode("claude") }
+func portFilePath(projectDir string) string {
+	home, _ := os.UserHomeDir()
+	dir := filepath.Join(home, ".vibeview")
+	os.MkdirAll(dir, 0755)
+	hash := fmt.Sprintf("%x", md5.Sum([]byte(projectDir)))
+	return filepath.Join(dir, hash)
+}
 func runPreviewMode(defaultMode string) {
 	fs := flag.NewFlagSet("vibeview", flag.ExitOnError)
 	port := fs.Int("port", 0, "HTTP server port (default: 51820 Claude, 51821 Design)")
@@ -139,7 +147,7 @@ func runPreviewMode(defaultMode string) {
 
 	// Auto-retry next port if busy, print URL only after success
 	for attempt := 0; attempt < 10; attempt++ {
-		os.WriteFile(filepath.Join(projectDir, ".vibeview-port"), []byte(fmt.Sprintf("%d", *port)), 0644)
+		os.WriteFile(portFilePath(projectDir), []byte(fmt.Sprintf("%d", *port)), 0644)
 		err := srv.Start()
 		if err == nil {
 			fmt.Printf("  %s  %s\n", term.DimText("Preview:"), term.GreenText(fmt.Sprintf("http://localhost:%d", *port)))
@@ -183,9 +191,9 @@ func runMCP() {
 	if envURL := os.Getenv("VIBEVIEW_URL"); envURL != "" {
 		serverURL = envURL
 	}
-	// Read port from project's .vibeview-port file (created by preview server)
+	// Read port from centralized file ($HOME/.vibeview/<hash>)
 	if cwd, err := os.Getwd(); err == nil {
-		if data, err := os.ReadFile(filepath.Join(cwd, ".vibeview-port")); err == nil {
+		if data, err := os.ReadFile(portFilePath(cwd)); err == nil {
 			if p, err := strconv.Atoi(strings.TrimSpace(string(data))); err == nil && p > 0 {
 				serverURL = fmt.Sprintf("http://localhost:%d", p)
 			}
