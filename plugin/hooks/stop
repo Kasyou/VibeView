@@ -1,48 +1,120 @@
 #!/usr/bin/env bash
-# VibeView Stop hook — reminds Claude to push content to the whiteboard.
-# Fires after every Claude response.
-
+# VibeView Stop hook — auto-pushes Claude's response to the whiteboard.
+# Reads the current session's JSONL transcript, extracts Claude's last text,
+# and POSTs it to the VibeView whiteboard.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-
+PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PORT="${VIBEVIEW_PORT:-51820}"
+SESSION_FILE="${CLAUDE_SESSION_FILE:-}"
 
-# Check if VibeView Claude whiteboard is running
+# ---- Find the session transcript ----
+if [ -z "$SESSION_FILE" ]; then
+    # Try to find the most recently modified JSONL in the project
+    PROJECT_NAME=$(echo "$PWD" | sed 's/[^a-zA-Z0-9]/-/g; s/^-*//; s/-*$//; s/^/\//; s/\/$//')
+    CLAUDE_DIR="$HOME/.claude"
+    # Look for session by most recent JSONL
+    SESSION_FILE=$(find "$CLAUDE_DIR/projects" -name "*.jsonl" -newer "$PLUGIN_ROOT/.last-push" 2>/dev/null | head -1)
+    if [ -z "$SESSION_FILE" ]; then
+        SESSION_FILE=$(find "$CLAUDE_DIR/projects" -name "*.jsonl" -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2)
+    fi
+fi
+
+if [ -z "$SESSION_FILE" ] || [ ! -f "$SESSION_FILE" ]; then
+    exit 0
+fi
+
+# ---- Check if VibeView whiteboard is running ----
 if ! curl -s --connect-timeout 1 "http://localhost:${PORT}/health" > /dev/null 2>&1; then
     exit 0
 fi
 
-# Check if this is Claude mode (has whiteboard, not design preview)
+# Check it's Claude mode (whiteboard), not Design mode
 config=$(curl -s --connect-timeout 1 "http://localhost:${PORT}/api/config" 2>/dev/null || echo '{}')
-mode=$(echo "$config" | grep -o '"mode":"[^"]*"' | cut -d'"' -f4 || echo 'claude')
-
+mode=$(echo "$config" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('mode','claude'))" 2>/dev/null || echo 'claude')
 if [ "$mode" != "claude" ]; then
     exit 0
 fi
 
-# Inject reminder for next turn — Claude MUST push content to whiteboard
-reminder="<CRITICAL>VibeView Claude whiteboard is ACTIVE at http://localhost:${PORT}
+# ---- Extract last assistant text message ----
+LAST_TEXT=$(python3 -c "
+import json, sys
 
-You MUST push EVERY significant conclusion, analysis, or result to the whiteboard using preview_show tool.
+# Read with UTF-8 encoding
+lines = sys.stdin.buffer.read().decode('utf-8').splitlines()
+for line in reversed(lines):
+    line = line.strip()
+    if not line:
+        continue
+    try:
+        d = json.loads(line)
+    except:
+        continue
+    if d.get('type') != 'assistant':
+        continue
+    msg = d.get('message', {})
+    content = msg.get('content', [])
+    if not isinstance(content, list):
+        continue
+    # Collect all text blocks from this message
+    texts = []
+    for item in content:
+        if item.get('type') == 'text':
+            texts.append(item.get('text', ''))
+    if texts:
+        print(json.dumps({'text': '\n\n'.join(texts)}))
+        break
+" < "$SESSION_FILE" 2>/dev/null)
 
-For each response:
-1. Identify key conclusions (architecture decisions, comparisons, summaries)
-2. Call preview_show with a descriptive title and markdown content
-3. Use tables for comparisons, lists for steps, headings for structure
-
-The user sees the whiteboard — NOT this chat. If you only write here and don't push, the user sees nothing visual. PUSH EVERYTHING.</CRITICAL>"
-
-escaped=""
-if command -v python3 &> /dev/null; then
-    escaped=$(python3 -c "import json; print(json.dumps('$reminder'))" 2>/dev/null || echo "")
-elif command -v python &> /dev/null; then
-    escaped=$(python -c "import json; print(json.dumps('$reminder'))" 2>/dev/null || echo "")
+if [ -z "$LAST_TEXT" ]; then
+    exit 0
 fi
 
-if [ -n "$escaped" ]; then
-    printf '{"hookSpecificOutput": {"hookEventName": "Stop", "additionalContext": %s}}\n' "$escaped"
+# ---- Skip if already pushed (dedup by storing last text hash) ----
+TEXT_HASH=$(echo "$LAST_TEXT" | md5sum 2>/dev/null | cut -d' ' -f1 || echo "$LAST_TEXT" | cksum | cut -d' ' -f1)
+LAST_HASH_FILE="$PLUGIN_ROOT/.last-push-hash"
+if [ -f "$LAST_HASH_FILE" ]; then
+    if [ "$(cat "$LAST_HASH_FILE")" = "$TEXT_HASH" ]; then
+        exit 0
+    fi
 fi
+echo "$TEXT_HASH" > "$LAST_HASH_FILE"
+
+# ---- Extract a title (first heading or first sentence) ----
+TITLE=$(echo "$LAST_TEXT" | python3 -c "
+import sys,json
+data = json.loads(sys.stdin.read())
+text = data.get('text','')
+# Use first ## heading as title
+for line in text.split('\n'):
+    line = line.strip()
+    if line.startswith('## '):
+        print(line[3:][:60])
+        sys.exit(0)
+# Fallback: first sentence
+first = text.split('.')[0].strip()
+if len(first) > 10:
+    print(first[:80])
+else:
+    print('Claude')
+" 2>/dev/null)
+
+CONTENT=$(echo "$LAST_TEXT" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('text',''))" 2>/dev/null)
+
+# ---- Push to whiteboard ----
+if [ -n "$CONTENT" ]; then
+    python3 -c "
+import json, urllib.request
+data = json.dumps({'title': '''${TITLE}''', 'content': '''${CONTENT}'''}, ensure_ascii=False).encode('utf-8')
+try:
+    req = urllib.request.Request('http://localhost:${PORT}/api/show', data=data, headers={'Content-Type': 'application/json; charset=utf-8'}, method='POST')
+    urllib.request.urlopen(req, timeout=3)
+except:
+    pass
+" 2>/dev/null || true
+fi
+
+# Update timestamp for next run
+touch "$PLUGIN_ROOT/.last-push"
 
 exit 0
