@@ -45,7 +45,13 @@
     }
     html += renderMarkdown(content);
     card.innerHTML = html;
-    document.getElementById('board').appendChild(card);
+    var board = document.getElementById('board');
+    board.appendChild(card);
+    // Limit to 30 cards, remove oldest
+    var allCards = board.querySelectorAll('.card');
+    if (allCards.length > 30) {
+      allCards[0].remove();
+    }
     card.scrollIntoView({behavior:'smooth',block:'end'});
   }
 
